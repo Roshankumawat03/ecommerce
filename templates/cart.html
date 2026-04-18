@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}My Cart — ShopX{% endblock %}
+
+{% block content %}
+<div class="container page-container">
+    <div class="page-header">
+        <h1>My <span class="gold-text">Cart</span></h1>
+        <p>{{ items|length }} item(s) in your cart</p>
+    </div>
+
+    {% if items %}
+    <div class="cart-layout">
+        <!-- Cart Items -->
+        <div class="cart-items-section">
+            {% for item in items %}
+            <div class="cart-item">
+                <a href="{{ url_for('product_detail', pid=item['pid']) }}" class="cart-item-img">
+                    <img src="{{ item['image_url'] }}" alt="{{ item['name'] }}">
+                </a>
+                <div class="cart-item-info">
+                    <h3><a href="{{ url_for('product_detail', pid=item['pid']) }}">{{ item['name'] }}</a></h3>
+                    <p class="cart-item-price">₹{{ '{:,.0f}'.format(item['price']) }} each</p>
+                    <p class="cart-item-subtotal">Subtotal: <strong>₹{{ '{:,.0f}'.format(item['price'] * item['quantity']) }}</strong></p>
+                </div>
+                <div class="cart-item-actions">
+                    <form method="POST" action="{{ url_for('update_cart', cart_id=item['id']) }}" class="qty-form">
+                        <div class="qty-selector small">
+                            <button type="button" onclick="updateQty(this, -1)"><i class="fas fa-minus"></i></button>
+                            <input type="number" name="quantity" value="{{ item['quantity'] }}" min="1" max="{{ item['stock'] }}" class="qty-input">
+                            <button type="button" onclick="updateQty(this, 1)"><i class="fas fa-plus"></i></button>
+                        </div>
+                        <button type="submit" class="btn-update-qty">Update</button>
+                    </form>
+                    <a href="{{ url_for('remove_from_cart', cart_id=item['id']) }}" class="btn-remove-item">
+                        <i class="fas fa-trash-alt"></i> Remove
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Order Summary -->
+        <div class="cart-summary">
+            <h3>Order Summary</h3>
+            <div class="summary-row">
+                <span>Subtotal ({{ items|length }} items)</span>
+                <span>₹{{ '{:,.0f}'.format(subtotal) }}</span>
+            </div>
+            <div class="summary-row">
+                <span>Shipping</span>
+                <span class="{% if subtotal >= 499 %}text-success{% endif %}">
+                    {% if subtotal >= 499 %}FREE{% else %}₹99{% endif %}
+                </span>
+            </div>
+            {% if subtotal < 499 %}
+            <div class="free-ship-bar">
+                <p>Add ₹{{ '{:,.0f}'.format(499 - subtotal) }} more for <strong>FREE shipping!</strong></p>
+                <div class="progress-bar-outer">
+                    <div class="progress-bar-inner" style="width: {{ [subtotal / 499 * 100, 100]|min }}%"></div>
+                </div>
+            </div>
+            {% endif %}
+            <div class="summary-divider"></div>
+            <div class="summary-total">
+                <span>Total</span>
+                <span>₹{{ '{:,.0f}'.format(subtotal + (0 if subtotal >= 499 else 99)) }}</span>
+            </div>
+            <a href="{{ url_for('checkout') }}" class="btn-checkout">
+                <i class="fas fa-lock"></i> Proceed to Checkout
+            </a>
+            <a href="{{ url_for('index') }}" class="btn-continue-shopping">
+                <i class="fas fa-arrow-left"></i> Continue Shopping
+            </a>
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-state large">
+        <i class="fas fa-shopping-bag"></i>
+        <h2>Your cart is empty</h2>
+        <p>Looks like you haven't added anything yet. Let's fix that!</p>
+        <a href="{{ url_for('index') }}" class="btn-primary">Start Shopping</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updateQty(btn, delta) {
+    const form = btn.closest('.qty-form');
+    const input = form.querySelector('.qty-input');
+    let val = parseInt(input.value) + delta;
+    val = Math.max(1, Math.min(val, parseInt(input.max || 999)));
+    input.value = val;
+}
+</script>
+{% endblock %}

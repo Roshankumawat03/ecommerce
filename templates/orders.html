@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}My Orders — ShopX{% endblock %}
+
+{% block content %}
+<div class="container page-container">
+    <div class="page-header">
+        <h1>My <span class="gold-text">Orders</span></h1>
+        <p>Track and manage your orders</p>
+    </div>
+
+    {% if orders %}
+    <div class="orders-list">
+        {% for order in orders %}
+        <div class="order-card">
+            <div class="order-header">
+                <div class="order-meta">
+                    <span class="order-id">#{{ order['id'] }}</span>
+                    <span class="order-date"><i class="fas fa-calendar"></i> {{ order['created_at'][:10] }}</span>
+                </div>
+                <div class="order-status-section">
+                    <span class="order-status status-{{ order['status']|lower }}">
+                        {% if order['status'] == 'Confirmed' %}<i class="fas fa-check-circle"></i>
+                        {% elif order['status'] == 'Processing' %}<i class="fas fa-spinner"></i>
+                        {% elif order['status'] == 'Shipped' %}<i class="fas fa-truck"></i>
+                        {% elif order['status'] == 'Delivered' %}<i class="fas fa-box-open"></i>
+                        {% endif %}
+                        {{ order['status'] }}
+                    </span>
+                    <span class="order-total">₹{{ '{:,.0f}'.format(order['total']) }}</span>
+                </div>
+            </div>
+
+            <div class="order-address">
+                <i class="fas fa-map-marker-alt"></i>
+                <span>{{ order['address'] }}</span>
+            </div>
+
+            <div class="order-items">
+                {% if order['id'] in order_items %}
+                {% for oi in order_items[order['id']] %}
+                <div class="order-item">
+                    <img src="{{ oi['image_url'] }}" alt="{{ oi['name'] }}">
+                    <div class="order-item-details">
+                        <p>{{ oi['name'] }}</p>
+                        <span>Qty: {{ oi['quantity'] }} × ₹{{ '{:,.0f}'.format(oi['price']) }}</span>
+                    </div>
+                    <span class="order-item-total">₹{{ '{:,.0f}'.format(oi['price'] * oi['quantity']) }}</span>
+                </div>
+                {% endfor %}
+                {% endif %}
+            </div>
+
+            <div class="order-footer">
+                <div class="order-track-steps">
+                    {% set steps = ['Confirmed', 'Processing', 'Shipped', 'Delivered'] %}
+                    {% for step in steps %}
+                    <div class="track-step {% if loop.index <= steps.index(order['status']) + 1 %}done{% endif %}">
+                        <div class="track-dot"></div>
+                        <span>{{ step }}</span>
+                    </div>
+                    {% if not loop.last %}<div class="track-line {% if loop.index < steps.index(order['status']) + 1 %}done{% endif %}"></div>{% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state large">
+        <i class="fas fa-box-open"></i>
+        <h2>No orders yet</h2>
+        <p>Looks like you haven't placed any orders. Start shopping now!</p>
+        <a href="{{ url_for('index') }}" class="btn-primary">Shop Now</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

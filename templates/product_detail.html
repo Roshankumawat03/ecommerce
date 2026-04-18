@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}{{ product['name'] }} — ShopX{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Breadcrumb -->
+    <nav class="breadcrumb">
+        <a href="{{ url_for('index') }}">Home</a>
+        <i class="fas fa-chevron-right"></i>
+        <a href="{{ url_for('index') }}?category={{ product['category'] }}">{{ product['category'] }}</a>
+        <i class="fas fa-chevron-right"></i>
+        <span>{{ product['name'][:40] }}{% if product['name']|length > 40 %}…{% endif %}</span>
+    </nav>
+
+    <div class="product-detail-grid">
+        <!-- Image Side -->
+        <div class="detail-image-side">
+            <div class="detail-img-container">
+                <img src="{{ product['image_url'] }}" alt="{{ product['name'] }}" class="detail-main-img" id="mainImg">
+                {% if product['badge'] %}
+                <span class="detail-badge badge-{{ product['badge']|lower }}">{{ product['badge'] }}</span>
+                {% endif %}
+            </div>
+            <!-- Thumbnails (same image for demo) -->
+            <div class="img-thumbs">
+                <img src="{{ product['image_url'] }}" alt="thumb" class="thumb active" onclick="changeImg(this)">
+                <img src="{{ product['image_url'] }}?blur=20" alt="thumb" class="thumb" onclick="changeImg(this)">
+                <img src="{{ product['image_url'] }}?sat=0" alt="thumb" class="thumb" onclick="changeImg(this)">
+            </div>
+        </div>
+
+        <!-- Info Side -->
+        <div class="detail-info-side">
+            <span class="detail-category-tag">{{ product['category'] }}</span>
+            <h1 class="detail-title">{{ product['name'] }}</h1>
+
+            <div class="detail-rating">
+                <div class="stars">
+                    {% for i in range(5) %}
+                    <i class="fas fa-star {% if i < product['rating']|int %}filled{% endif %}"></i>
+                    {% endfor %}
+                </div>
+                <span class="rating-num">{{ product['rating'] }}</span>
+                <span class="rating-reviews">({{ product['reviews'] }} reviews)</span>
+            </div>
+
+            <div class="detail-price-block">
+                <span class="detail-price-main">₹{{ '{:,.0f}'.format(product['price']) }}</span>
+                {% if product['original_price'] and product['original_price'] > product['price'] %}
+                <span class="detail-price-old">₹{{ '{:,.0f}'.format(product['original_price']) }}</span>
+                <span class="detail-discount-tag">{{ ((product['original_price'] - product['price']) / product['original_price'] * 100)|int }}% OFF</span>
+                {% endif %}
+            </div>
+            {% if product['original_price'] %}
+            <p class="detail-saving">You save ₹{{ '{:,.0f}'.format(product['original_price'] - product['price']) }}</p>
+            {% endif %}
+
+            <div class="detail-divider"></div>
+
+            <p class="detail-description">{{ product['description'] }}</p>
+
+            <div class="detail-meta">
+                <div class="meta-item">
+                    <i class="fas fa-check-circle"></i>
+                    <span>In Stock ({{ product['stock'] }} units)</span>
+                </div>
+                <div class="meta-item">
+                    <i class="fas fa-truck"></i>
+                    <span>Free delivery on orders above ₹499</span>
+                </div>
+                <div class="meta-item">
+                    <i class="fas fa-undo"></i>
+                    <span>30-day hassle-free returns</span>
+                </div>
+                <div class="meta-item">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>1 Year Warranty included</span>
+                </div>
+            </div>
+
+            <form method="POST" action="{{ url_for('add_to_cart', pid=product['id']) }}" class="detail-cart-form">
+                <div class="qty-selector">
+                    <button type="button" onclick="changeQty(-1)"><i class="fas fa-minus"></i></button>
+                    <input type="number" name="quantity" id="qtyInput" value="1" min="1" max="{{ product['stock'] }}">
+                    <button type="button" onclick="changeQty(1)"><i class="fas fa-plus"></i></button>
+                </div>
+                <button type="submit" class="btn-detail-cart">
+                    <i class="fas fa-shopping-bag"></i> Add to Cart
+                </button>
+            </form>
+
+            <a href="{{ url_for('add_to_cart', pid=product['id']) }}" class="btn-buy-now"
+               onclick="document.querySelector('.detail-cart-form').submit(); return false;">
+                <i class="fas fa-bolt"></i> Buy Now
+            </a>
+        </div>
+    </div>
+
+    <!-- Related Products -->
+    {% if related %}
+    <section class="related-section">
+        <div class="section-header">
+            <h2>You May <span class="gold-text">Also Like</span></h2>
+        </div>
+        <div class="products-grid">
+            {% for p in related %}
+            <div class="product-card">
+                <a href="{{ url_for('product_detail', pid=p['id']) }}" class="product-img-wrap">
+                    <img src="{{ p['image_url'] }}" alt="{{ p['name'] }}" loading="lazy">
+                    {% if p['badge'] %}
+                    <span class="product-badge badge-{{ p['badge']|lower }}">{{ p['badge'] }}</span>
+                    {% endif %}
+                    <div class="product-overlay"><span><i class="fas fa-eye"></i> Quick View</span></div>
+                </a>
+                <div class="product-info">
+                    <span class="product-category">{{ p['category'] }}</span>
+                    <h3 class="product-name"><a href="{{ url_for('product_detail', pid=p['id']) }}">{{ p['name'] }}</a></h3>
+                    <div class="product-pricing">
+                        <span class="price-main">₹{{ '{:,.0f}'.format(p['price']) }}</span>
+                        {% if p['original_price'] and p['original_price'] > p['price'] %}
+                        <span class="price-original">₹{{ '{:,.0f}'.format(p['original_price']) }}</span>
+                        {% endif %}
+                    </div>
+                    <form method="POST" action="{{ url_for('add_to_cart', pid=p['id']) }}" class="add-cart-form">
+                        <input type="hidden" name="quantity" value="1">
+                        <button type="submit" class="btn-add-cart"><i class="fas fa-shopping-bag"></i> Add to Cart</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function changeQty(delta) {
+    const input = document.getElementById('qtyInput');
+    let val = parseInt(input.value) + delta;
+    val = Math.max(1, Math.min(val, parseInt(input.max)));
+    input.value = val;
+}
+function changeImg(el) {
+    document.getElementById('mainImg').src = el.src;
+    document.querySelectorAll('.thumb').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+}
+</script>
+{% endblock %}

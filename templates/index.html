@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}ShopX — Premium Online Store{% endblock %}
+
+{% block content %}
+
+<!-- HERO SECTION -->
+{% if not request.args.get('search') and not request.args.get('category') %}
+<section class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-content">
+        <div class="hero-badge">🔥 Flash Sale — Up to 40% Off</div>
+        <h1 class="hero-title">Shop the <span class="gold-text">Future</span><br>Today</h1>
+        <p class="hero-subtitle">Discover premium electronics, fashion, and lifestyle products curated just for you.</p>
+        <div class="hero-ctas">
+            <a href="#products" class="btn-hero-primary">Shop Now <i class="fas fa-arrow-right"></i></a>
+            <a href="{{ url_for('index') }}?category=Electronics" class="btn-hero-secondary">Electronics</a>
+        </div>
+        <div class="hero-stats">
+            <div class="stat"><span class="stat-num">50K+</span><span class="stat-label">Products</span></div>
+            <div class="stat-divider"></div>
+            <div class="stat"><span class="stat-num">2M+</span><span class="stat-label">Customers</span></div>
+            <div class="stat-divider"></div>
+            <div class="stat"><span class="stat-num">4.9★</span><span class="stat-label">Rating</span></div>
+        </div>
+    </div>
+    <div class="hero-visual">
+        <div class="hero-card floating">
+            <img src="https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=300&q=80" alt="Featured">
+            <div class="hero-card-tag">New Arrival</div>
+        </div>
+        <div class="hero-card-small floating-delay">
+            <i class="fas fa-shield-alt"></i> Secure Payments
+        </div>
+        <div class="hero-card-small-2 floating-delay2">
+            <i class="fas fa-truck"></i> Free Delivery ₹499+
+        </div>
+    </div>
+</section>
+
+<!-- CATEGORY PILLS -->
+<section class="categories-strip">
+    <div class="container">
+        <div class="cat-pills">
+            <a href="{{ url_for('index') }}" class="cat-pill {% if not request.args.get('category') %}active{% endif %}">
+                <i class="fas fa-th-large"></i> All
+            </a>
+            {% for cat in categories %}
+            <a href="{{ url_for('index') }}?category={{ cat['category'] }}"
+               class="cat-pill {% if request.args.get('category') == cat['category'] %}active{% endif %}">
+                {% if cat['category'] == 'Electronics' %}<i class="fas fa-laptop"></i>
+                {% elif cat['category'] == 'Audio' %}<i class="fas fa-headphones"></i>
+                {% elif cat['category'] == 'Laptops' %}<i class="fas fa-laptop-code"></i>
+                {% elif cat['category'] == 'Footwear' %}<i class="fas fa-shoe-prints"></i>
+                {% elif cat['category'] == 'Fashion' %}<i class="fas fa-tshirt"></i>
+                {% elif cat['category'] == 'Cameras' %}<i class="fas fa-camera"></i>
+                {% elif cat['category'] == 'Home' %}<i class="fas fa-home"></i>
+                {% else %}<i class="fas fa-star"></i>{% endif %}
+                {{ cat['category'] }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- FEATURED BANNER -->
+{% if featured %}
+<section class="featured-section container">
+    <div class="section-header">
+        <h2>Featured <span class="gold-text">Picks</span></h2>
+        <p>Handpicked deals just for you</p>
+    </div>
+    <div class="featured-grid">
+        {% for p in featured[:4] %}
+        <a href="{{ url_for('product_detail', pid=p['id']) }}" class="featured-card">
+            <div class="featured-img" style="background-image:url('{{ p['image_url'] }}')"></div>
+            <div class="featured-info">
+                <span class="featured-badge badge-{{ p['badge']|lower }}">{{ p['badge'] }}</span>
+                <h3>{{ p['name'][:30] }}{% if p['name']|length > 30 %}…{% endif %}</h3>
+                <div class="featured-price">
+                    <span class="price-now">₹{{ '{:,.0f}'.format(p['price']) }}</span>
+                    {% if p['original_price'] %}
+                    <span class="price-off">{{ ((p['original_price'] - p['price']) / p['original_price'] * 100)|int }}% OFF</span>
+                    {% endif %}
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+<!-- TRUST BADGES -->
+<section class="trust-strip">
+    <div class="container">
+        <div class="trust-grid">
+            <div class="trust-item"><i class="fas fa-truck"></i><div><strong>Free Delivery</strong><span>On orders above ₹499</span></div></div>
+            <div class="trust-item"><i class="fas fa-undo-alt"></i><div><strong>Easy Returns</strong><span>30-day return policy</span></div></div>
+            <div class="trust-item"><i class="fas fa-shield-alt"></i><div><strong>Secure Payment</strong><span>100% safe transactions</span></div></div>
+            <div class="trust-item"><i class="fas fa-headset"></i><div><strong>24/7 Support</strong><span>Always here to help</span></div></div>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- PRODUCTS SECTION -->
+<section class="products-section container" id="products">
+    <div class="products-header">
+        <div class="section-header">
+            {% if request.args.get('search') %}
+            <h2>Results for "<span class="gold-text">{{ request.args.get('search') }}</span>"</h2>
+            <p>{{ products|length }} products found</p>
+            {% elif request.args.get('category') %}
+            <h2><span class="gold-text">{{ request.args.get('category') }}</span></h2>
+            <p>{{ products|length }} products available</p>
+            {% else %}
+            <h2>All <span class="gold-text">Products</span></h2>
+            <p>Explore our curated collection</p>
+            {% endif %}
+        </div>
+        <div class="sort-bar">
+            <label>Sort by</label>
+            <select id="sortSelect" onchange="applySort(this.value)">
+                <option value="" {% if not request.args.get('sort') %}selected{% endif %}>Relevance</option>
+                <option value="price_asc" {% if request.args.get('sort')=='price_asc' %}selected{% endif %}>Price: Low to High</option>
+                <option value="price_desc" {% if request.args.get('sort')=='price_desc' %}selected{% endif %}>Price: High to Low</option>
+                <option value="rating" {% if request.args.get('sort')=='rating' %}selected{% endif %}>Top Rated</option>
+                <option value="newest" {% if request.args.get('sort')=='newest' %}selected{% endif %}>Newest First</option>
+            </select>
+        </div>
+    </div>
+
+    {% if products %}
+    <div class="products-grid">
+        {% for p in products %}
+        <div class="product-card" data-aos>
+            <a href="{{ url_for('product_detail', pid=p['id']) }}" class="product-img-wrap">
+                <img src="{{ p['image_url'] }}" alt="{{ p['name'] }}" loading="lazy">
+                {% if p['badge'] %}
+                <span class="product-badge badge-{{ p['badge']|lower }}">{{ p['badge'] }}</span>
+                {% endif %}
+                <div class="product-overlay">
+                    <span><i class="fas fa-eye"></i> Quick View</span>
+                </div>
+            </a>
+            <div class="product-info">
+                <span class="product-category">{{ p['category'] }}</span>
+                <h3 class="product-name">
+                    <a href="{{ url_for('product_detail', pid=p['id']) }}">{{ p['name'] }}</a>
+                </h3>
+                <div class="product-rating">
+                    {% for i in range(5) %}
+                    <i class="fas fa-star {% if i < p['rating']|int %}filled{% elif i < p['rating'] %}half{% endif %}"></i>
+                    {% endfor %}
+                    <span>({{ p['reviews'] }})</span>
+                </div>
+                <div class="product-pricing">
+                    <span class="price-main">₹{{ '{:,.0f}'.format(p['price']) }}</span>
+                    {% if p['original_price'] and p['original_price'] > p['price'] %}
+                    <span class="price-original">₹{{ '{:,.0f}'.format(p['original_price']) }}</span>
+                    <span class="price-discount">{{ ((p['original_price'] - p['price']) / p['original_price'] * 100)|int }}% off</span>
+                    {% endif %}
+                </div>
+                <form method="POST" action="{{ url_for('add_to_cart', pid=p['id']) }}" class="add-cart-form">
+                    <input type="hidden" name="quantity" value="1">
+                    <button type="submit" class="btn-add-cart">
+                        <i class="fas fa-shopping-bag"></i> Add to Cart
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-search-minus"></i>
+        <h3>No products found</h3>
+        <p>Try adjusting your search or browse all products</p>
+        <a href="{{ url_for('index') }}" class="btn-primary">Browse All</a>
+    </div>
+    {% endif %}
+</section>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function applySort(val) {
+    const url = new URL(window.location.href);
+    if (val) url.searchParams.set('sort', val);
+    else url.searchParams.delete('sort');
+    window.location.href = url.toString();
+}
+</script>
+{% endblock %}
