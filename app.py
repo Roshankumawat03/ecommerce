@@ -1,336 +1,527 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
-import sqlite3
-import hashlib
-import os
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
-from functools import wraps
+import os
+import json
 
 app = Flask(__name__)
-app.secret_key = 'shopx_secret_key_2024'
-DATABASE = 'ecommerce.db'
+app.config['SECRET_KEY'] = 'shopnest-secret-key-2024'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///shopnest.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# ─── DB HELPERS ───────────────────────────────────────────────
-def get_db():
-    conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row
-    return conn
+db = SQLAlchemy(app)
+login_manager = LoginManager(app)
+login_manager.login_view = 'login'
+login_manager.login_message = 'Please login to continue.'
 
-def init_db():
-    conn = get_db()
-    c = conn.cursor()
+# ─────────────────────────────────────────────
+# MODELS
+# ─────────────────────────────────────────────
 
-    c.execute('''CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        email TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    )''')
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password = db.Column(db.String(200), nullable=False)
+    is_admin = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    orders = db.relationship('Order', backref='customer', lazy=True)
 
-    c.execute('''CREATE TABLE IF NOT EXISTS products (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        description TEXT,
-        price REAL NOT NULL,
-        original_price REAL,
-        category TEXT,
-        image_url TEXT,
-        stock INTEGER DEFAULT 100,
-        rating REAL DEFAULT 4.5,
-        reviews INTEGER DEFAULT 0,
-        badge TEXT
-    )''')
+class Category(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)
+    icon = db.Column(db.String(50), default='🛍️')
+    products = db.relationship('Product', backref='category', lazy=True)
 
-    c.execute('''CREATE TABLE IF NOT EXISTS cart (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        product_id INTEGER,
-        quantity INTEGER DEFAULT 1,
-        FOREIGN KEY(user_id) REFERENCES users(id),
-        FOREIGN KEY(product_id) REFERENCES products(id)
-    )''')
+class Product(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    price = db.Column(db.Float, nullable=False)
+    original_price = db.Column(db.Float)
+    stock = db.Column(db.Integer, default=0)
+    image_url = db.Column(db.String(500), default='')
+    category_id = db.Column(db.Integer, db.ForeignKey('category.id'))
+    featured = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    rating = db.Column(db.Float, default=4.0)
+    reviews_count = db.Column(db.Integer, default=0)
 
-    c.execute('''CREATE TABLE IF NOT EXISTS orders (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        total REAL,
-        status TEXT DEFAULT 'Processing',
-        address TEXT,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(user_id) REFERENCES users(id)
-    )''')
+class Order(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    total = db.Column(db.Float, nullable=False)
+    status = db.Column(db.String(20), default='Pending')
+    address = db.Column(db.Text)
+    phone = db.Column(db.String(20))
+    payment_method = db.Column(db.String(50), default='COD')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    items = db.relationship('OrderItem', backref='order', lazy=True)
 
-    c.execute('''CREATE TABLE IF NOT EXISTS order_items (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        order_id INTEGER,
-        product_id INTEGER,
-        quantity INTEGER,
-        price REAL,
-        FOREIGN KEY(order_id) REFERENCES orders(id),
-        FOREIGN KEY(product_id) REFERENCES products(id)
-    )''')
+class OrderItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey('order.id'))
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'))
+    quantity = db.Column(db.Integer, nullable=False)
+    price = db.Column(db.Float, nullable=False)
+    product = db.relationship('Product')
 
-    # Seed products if empty
-    c.execute("SELECT COUNT(*) FROM products")
-    if c.fetchone()[0] == 0:
-        products = [
-            ("Apple iPhone 15 Pro", "Latest iPhone with titanium design, A17 Pro chip, and advanced camera system with 48MP main sensor.", 129999, 149999, "Electronics", "https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=400&q=80", 50, 4.8, 2341, "New"),
-            ("Samsung Galaxy S24 Ultra", "200MP camera, S Pen included, Snapdragon 8 Gen 3, 5000mAh battery.", 124999, 139999, "Electronics", "https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?w=400&q=80", 40, 4.7, 1892, "Hot"),
-            ("Sony WH-1000XM5", "Industry-leading noise cancellation with 30-hour battery life and crystal clear hands-free calling.", 29999, 34999, "Audio", "https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?w=400&q=80", 120, 4.9, 3210, "Bestseller"),
-            ("MacBook Air M3", "Supercharged by M3 chip. 15.3‑inch Liquid Retina display. Up to 18 hours battery life.", 114900, 129900, "Laptops", "https://images.unsplash.com/photo-1611186871525-9f7a7da8f297?w=400&q=80", 30, 4.9, 1456, "New"),
-            ("Nike Air Jordan 1 Retro", "Classic basketball shoe with premium leather upper. Iconic design in heritage colorway.", 12995, 15995, "Footwear", "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=80", 200, 4.6, 5678, "Sale"),
-            ("Levi's 512 Slim Taper Jeans", "Slim through the hip and thigh with a tapered leg. Made with stretch fabric for comfort.", 3499, 4999, "Fashion", "https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&q=80", 300, 4.4, 2109, None),
-            ("Canon EOS R6 Mark II", "Full-frame mirrorless camera with 40fps burst shooting and in-body image stabilization.", 214995, 239995, "Cameras", "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=400&q=80", 20, 4.8, 876, "New"),
-            ("Dyson V15 Detect", "Laser dust detection, powerful suction, HEPA filtration. The most intelligent cordless vacuum.", 52900, 62900, "Home", "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&q=80", 60, 4.7, 1234, "Hot"),
-            ("iPad Pro 12.9\" M2", "The ultimate iPad experience with M2 chip, Liquid Retina XDR display, and Apple Pencil support.", 109900, 119900, "Electronics", "https://images.unsplash.com/photo-1544244015-0df4cec9d125?w=400&q=80", 45, 4.8, 987, None),
-            ("Adidas Ultraboost 23", "Boost cushioning technology for incredible energy return. Primeknit upper for adaptive fit.", 16999, 19999, "Footwear", "https://images.unsplash.com/photo-1608231387042-66d1773070a5?w=400&q=80", 150, 4.5, 3421, "Sale"),
-            ("Bose QuietComfort 45", "Acclaimed noise cancellation, high-fidelity audio, comfortable design. 24-hour battery life.", 24999, 29999, "Audio", "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&q=80", 80, 4.6, 2876, None),
-            ("LG OLED 55\" 4K TV", "OLED evo panel, α9 AI Processor 4K, Dolby Vision IQ & Dolby Atmos, 120Hz refresh rate.", 119990, 149990, "Electronics", "https://images.unsplash.com/photo-1593359677879-a4bb92f829e1?w=400&q=80", 25, 4.7, 765, "Sale"),
-        ]
-        c.executemany('''INSERT INTO products (name, description, price, original_price, category, image_url, stock, rating, reviews, badge)
-                         VALUES (?,?,?,?,?,?,?,?,?,?)''', products)
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
-    conn.commit()
-    conn.close()
+@app.context_processor
+def inject_nav_categories():
+    """Make categories available in ALL templates for navbar dropdown."""
+    try:
+        nav_cats = Category.query.all()
+    except Exception:
+        nav_cats = []
+    return dict(nav_categories=nav_cats)
 
-def login_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if 'user_id' not in session:
-            flash('Please login to continue', 'warning')
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated
+# ─────────────────────────────────────────────
+# CART HELPERS
+# ─────────────────────────────────────────────
 
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
+def get_cart():
+    return session.get('cart', {})
 
-# ─── ROUTES ────────────────────────────────────────────────────
+def get_cart_count():
+    return sum(item['qty'] for item in get_cart().values())
+
+def get_cart_total():
+    return sum(item['price'] * item['qty'] for item in get_cart().values())
+
+app.jinja_env.globals['get_cart_count'] = get_cart_count
+app.jinja_env.globals['get_cart_total'] = get_cart_total
+
+# ─────────────────────────────────────────────
+# PUBLIC ROUTES
+# ─────────────────────────────────────────────
 
 @app.route('/')
 def index():
-    conn = get_db()
-    search = request.args.get('search', '')
-    category = request.args.get('category', '')
-    sort = request.args.get('sort', '')
+    featured = Product.query.filter_by(featured=True).limit(8).all()
+    categories = Category.query.all()
+    new_arrivals = Product.query.order_by(Product.created_at.desc()).limit(8).all()
+    total_products = Product.query.count()
+    return render_template('index.html', featured=featured, categories=categories,
+                           new_arrivals=new_arrivals, total_products=total_products)
 
-    query = "SELECT * FROM products WHERE 1=1"
-    params = []
+@app.route('/products')
+def products():
+    page = request.args.get('page', 1, type=int)
+    category_id = request.args.get('category', type=int)
+    search = request.args.get('q', '')
+    sort = request.args.get('sort', 'newest')
+    min_price = request.args.get('min_price', type=float)
+    max_price = request.args.get('max_price', type=float)
 
+    query = Product.query
+    if category_id:
+        query = query.filter_by(category_id=category_id)
     if search:
-        query += " AND (name LIKE ? OR description LIKE ? OR category LIKE ?)"
-        params += [f'%{search}%', f'%{search}%', f'%{search}%']
-    if category:
-        query += " AND category = ?"
-        params.append(category)
+        query = query.filter(Product.name.ilike(f'%{search}%'))
+    if min_price:
+        query = query.filter(Product.price >= min_price)
+    if max_price:
+        query = query.filter(Product.price <= max_price)
     if sort == 'price_asc':
-        query += " ORDER BY price ASC"
+        query = query.order_by(Product.price.asc())
     elif sort == 'price_desc':
-        query += " ORDER BY price DESC"
+        query = query.order_by(Product.price.desc())
+    elif sort == 'name':
+        query = query.order_by(Product.name.asc())
+    else:
+        query = query.order_by(Product.created_at.desc())
+
+    products = query.paginate(page=page, per_page=12, error_out=False)
+    categories = Category.query.all()
+    return render_template('products.html', products=products, categories=categories,
+                           current_category=category_id, search=search, sort=sort)
+
+@app.route('/category/<int:id>')
+def category_page(id):
+    category = Category.query.get_or_404(id)
+    page = request.args.get('page', 1, type=int)
+    sort = request.args.get('sort', 'newest')
+    min_price = request.args.get('min_price', type=float)
+    max_price = request.args.get('max_price', type=float)
+    search = request.args.get('q', '')
+
+    query = Product.query.filter_by(category_id=id)
+    if search:
+        query = query.filter(Product.name.ilike(f'%{search}%'))
+    if min_price:
+        query = query.filter(Product.price >= min_price)
+    if max_price:
+        query = query.filter(Product.price <= max_price)
+    if sort == 'price_asc':
+        query = query.order_by(Product.price.asc())
+    elif sort == 'price_desc':
+        query = query.order_by(Product.price.desc())
+    elif sort == 'name':
+        query = query.order_by(Product.name.asc())
     elif sort == 'rating':
-        query += " ORDER BY rating DESC"
-    elif sort == 'newest':
-        query += " ORDER BY id DESC"
+        query = query.order_by(Product.rating.desc())
+    else:
+        query = query.order_by(Product.created_at.desc())
 
-    products = conn.execute(query, params).fetchall()
-    categories = conn.execute("SELECT DISTINCT category FROM products").fetchall()
-    featured = conn.execute("SELECT * FROM products WHERE badge IS NOT NULL LIMIT 4").fetchall()
+    products = query.paginate(page=page, per_page=12, error_out=False)
+    categories = Category.query.all()
+    # Price range for this category
+    all_in_cat = Product.query.filter_by(category_id=id)
+    price_min = db.session.query(db.func.min(Product.price)).filter_by(category_id=id).scalar() or 0
+    price_max = db.session.query(db.func.max(Product.price)).filter_by(category_id=id).scalar() or 999999
+    return render_template('category.html', category=category, products=products,
+                           categories=categories, sort=sort, search=search,
+                           price_min=price_min, price_max=price_max,
+                           min_price=min_price, max_price=max_price)
 
-    cart_count = 0
-    if 'user_id' in session:
-        row = conn.execute("SELECT SUM(quantity) FROM cart WHERE user_id=?", (session['user_id'],)).fetchone()
-        cart_count = row[0] or 0
-
-    conn.close()
-    return render_template('index.html', products=products, categories=categories,
-                           featured=featured, cart_count=cart_count,
-                           search=search, category=category, sort=sort)
-
-@app.route('/product/<int:pid>')
-def product_detail(pid):
-    conn = get_db()
-    product = conn.execute("SELECT * FROM products WHERE id=?", (pid,)).fetchone()
-    related = conn.execute("SELECT * FROM products WHERE category=? AND id!=? LIMIT 4",
-                           (product['category'], pid)).fetchall()
-    cart_count = 0
-    if 'user_id' in session:
-        row = conn.execute("SELECT SUM(quantity) FROM cart WHERE user_id=?", (session['user_id'],)).fetchone()
-        cart_count = row[0] or 0
-    conn.close()
-    return render_template('product_detail.html', product=product, related=related, cart_count=cart_count)
+@app.route('/product/<int:id>')
+def product_detail(id):
+    product = Product.query.get_or_404(id)
+    related = Product.query.filter_by(category_id=product.category_id).filter(Product.id != id).limit(4).all()
+    return render_template('product_detail.html', product=product, related=related)
 
 @app.route('/cart')
-@login_required
 def cart():
-    conn = get_db()
-    items = conn.execute('''
-        SELECT c.id, c.quantity, p.id as pid, p.name, p.price, p.image_url, p.stock
-        FROM cart c JOIN products p ON c.product_id = p.id
-        WHERE c.user_id = ?
-    ''', (session['user_id'],)).fetchall()
-    subtotal = sum(i['price'] * i['quantity'] for i in items)
-    cart_count = sum(i['quantity'] for i in items)
-    conn.close()
-    return render_template('cart.html', items=items, subtotal=subtotal, cart_count=cart_count)
+    cart = get_cart()
+    cart_items = []
+    for pid, item in cart.items():
+        product = Product.query.get(int(pid))
+        if product:
+            cart_items.append({'product': product, 'qty': item['qty'], 'subtotal': item['price'] * item['qty']})
+    return render_template('cart.html', cart_items=cart_items)
 
-@app.route('/add_to_cart/<int:pid>', methods=['POST'])
-@login_required
-def add_to_cart(pid):
-    qty = int(request.form.get('quantity', 1))
-    conn = get_db()
-    existing = conn.execute("SELECT * FROM cart WHERE user_id=? AND product_id=?",
-                            (session['user_id'], pid)).fetchone()
-    if existing:
-        conn.execute("UPDATE cart SET quantity=quantity+? WHERE id=?", (qty, existing['id']))
+@app.route('/cart/add/<int:id>', methods=['POST'])
+def add_to_cart(id):
+    product = Product.query.get_or_404(id)
+    qty = int(request.form.get('qty', 1))
+    cart = get_cart()
+    pid = str(id)
+    if pid in cart:
+        cart[pid]['qty'] += qty
     else:
-        conn.execute("INSERT INTO cart (user_id, product_id, quantity) VALUES (?,?,?)",
-                     (session['user_id'], pid, qty))
-    conn.commit()
-    conn.close()
-    flash('Item added to cart!', 'success')
-    return redirect(request.referrer or url_for('index'))
+        cart[pid] = {'name': product.name, 'price': product.price, 'qty': qty, 'image': product.image_url}
+    session['cart'] = cart
+    flash(f'"{product.name}" cart mein add ho gaya!', 'success')
+    return redirect(request.referrer or url_for('products'))
 
-@app.route('/update_cart/<int:cart_id>', methods=['POST'])
-@login_required
-def update_cart(cart_id):
-    qty = int(request.form.get('quantity', 1))
-    conn = get_db()
-    if qty <= 0:
-        conn.execute("DELETE FROM cart WHERE id=? AND user_id=?", (cart_id, session['user_id']))
-    else:
-        conn.execute("UPDATE cart SET quantity=? WHERE id=? AND user_id=?",
-                     (qty, cart_id, session['user_id']))
-    conn.commit()
-    conn.close()
+@app.route('/cart/update/<int:id>', methods=['POST'])
+def update_cart(id):
+    qty = int(request.form.get('qty', 1))
+    cart = get_cart()
+    pid = str(id)
+    if pid in cart:
+        if qty <= 0:
+            del cart[pid]
+        else:
+            cart[pid]['qty'] = qty
+    session['cart'] = cart
     return redirect(url_for('cart'))
 
-@app.route('/remove_from_cart/<int:cart_id>')
-@login_required
-def remove_from_cart(cart_id):
-    conn = get_db()
-    conn.execute("DELETE FROM cart WHERE id=? AND user_id=?", (cart_id, session['user_id']))
-    conn.commit()
-    conn.close()
-    flash('Item removed from cart', 'info')
+@app.route('/cart/remove/<int:id>')
+def remove_from_cart(id):
+    cart = get_cart()
+    pid = str(id)
+    if pid in cart:
+        del cart[pid]
+    session['cart'] = cart
+    flash('Item cart se remove ho gaya.', 'info')
     return redirect(url_for('cart'))
 
 @app.route('/checkout', methods=['GET', 'POST'])
 @login_required
 def checkout():
-    conn = get_db()
-    items = conn.execute('''
-        SELECT c.id, c.quantity, p.id as pid, p.name, p.price, p.image_url
-        FROM cart c JOIN products p ON c.product_id = p.id
-        WHERE c.user_id = ?
-    ''', (session['user_id'],)).fetchall()
-
-    if not items:
-        flash('Your cart is empty!', 'warning')
-        conn.close()
-        return redirect(url_for('cart'))
-
-    subtotal = sum(i['price'] * i['quantity'] for i in items)
-    shipping = 99 if subtotal < 499 else 0
-    total = subtotal + shipping
-    cart_count = sum(i['quantity'] for i in items)
-
+    cart = get_cart()
+    if not cart:
+        flash('Aapka cart khali hai!', 'warning')
+        return redirect(url_for('products'))
     if request.method == 'POST':
-        address = f"{request.form['address']}, {request.form['city']}, {request.form['state']} - {request.form['pincode']}"
-        order = conn.execute(
-            "INSERT INTO orders (user_id, total, address, status) VALUES (?,?,?,?)",
-            (session['user_id'], total, address, 'Confirmed')
-        )
-        order_id = order.lastrowid
-        for item in items:
-            conn.execute("INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?,?,?,?)",
-                         (order_id, item['pid'], item['quantity'], item['price']))
-        conn.execute("DELETE FROM cart WHERE user_id=?", (session['user_id'],))
-        conn.commit()
-        conn.close()
-        flash(f'Order #{order_id} placed successfully! 🎉', 'success')
-        return redirect(url_for('orders'))
+        address = request.form.get('address')
+        phone = request.form.get('phone')
+        payment = request.form.get('payment', 'COD')
+        total = get_cart_total()
+        order = Order(user_id=current_user.id, total=total, address=address,
+                      phone=phone, payment_method=payment, status='Pending')
+        db.session.add(order)
+        db.session.flush()
+        for pid, item in cart.items():
+            oi = OrderItem(order_id=order.id, product_id=int(pid),
+                           quantity=item['qty'], price=item['price'])
+            db.session.add(oi)
+            product = Product.query.get(int(pid))
+            if product:
+                product.stock = max(0, product.stock - item['qty'])
+        db.session.commit()
+        session['cart'] = {}
+        flash(f'Order #{order.id} successfully place ho gaya! 🎉', 'success')
+        return redirect(url_for('order_success', order_id=order.id))
+    return render_template('checkout.html', total=get_cart_total())
 
-    conn.close()
-    return render_template('checkout.html', items=items, subtotal=subtotal,
-                           shipping=shipping, total=total, cart_count=cart_count)
+@app.route('/order/success/<int:order_id>')
+@login_required
+def order_success(order_id):
+    order = Order.query.get_or_404(order_id)
+    return render_template('order_success.html', order=order)
 
 @app.route('/orders')
 @login_required
-def orders():
-    conn = get_db()
-    user_orders = conn.execute(
-        "SELECT * FROM orders WHERE user_id=? ORDER BY created_at DESC",
-        (session['user_id'],)
-    ).fetchall()
-    order_items_map = {}
-    for o in user_orders:
-        oi = conn.execute('''
-            SELECT oi.*, p.name, p.image_url FROM order_items oi
-            JOIN products p ON oi.product_id = p.id
-            WHERE oi.order_id = ?
-        ''', (o['id'],)).fetchall()
-        order_items_map[o['id']] = oi
-    cart_count = 0
-    row = conn.execute("SELECT SUM(quantity) FROM cart WHERE user_id=?", (session['user_id'],)).fetchone()
-    cart_count = row[0] or 0
-    conn.close()
-    return render_template('orders.html', orders=user_orders, order_items=order_items_map, cart_count=cart_count)
+def my_orders():
+    orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.created_at.desc()).all()
+    return render_template('orders.html', orders=orders)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if 'user_id' in session:
+    if current_user.is_authenticated:
         return redirect(url_for('index'))
     if request.method == 'POST':
-        email = request.form['email']
-        password = hash_password(request.form['password'])
-        conn = get_db()
-        user = conn.execute("SELECT * FROM users WHERE email=? AND password=?", (email, password)).fetchone()
-        conn.close()
-        if user:
-            session['user_id'] = user['id']
-            session['user_name'] = user['name']
-            flash(f'Welcome back, {user["name"]}! 👋', 'success')
-            return redirect(url_for('index'))
-        flash('Invalid email or password', 'error')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        user = User.query.filter_by(email=email).first()
+        if user and check_password_hash(user.password, password):
+            login_user(user)
+            next_page = request.args.get('next')
+            flash(f'Welcome back, {user.name}! 👋', 'success')
+            return redirect(next_page or url_for('index'))
+        flash('Email ya password galat hai!', 'danger')
     return render_template('login.html')
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    if 'user_id' in session:
+    if current_user.is_authenticated:
         return redirect(url_for('index'))
     if request.method == 'POST':
-        name = request.form['name']
-        email = request.form['email']
-        password = hash_password(request.form['password'])
-        try:
-            conn = get_db()
-            conn.execute("INSERT INTO users (name, email, password) VALUES (?,?,?)", (name, email, password))
-            conn.commit()
-            user = conn.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
-            conn.close()
-            session['user_id'] = user['id']
-            session['user_name'] = user['name']
-            flash(f'Welcome to ShopX, {name}! 🎉', 'success')
-            return redirect(url_for('index'))
-        except sqlite3.IntegrityError:
-            flash('Email already registered', 'error')
+        name = request.form.get('name')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        confirm = request.form.get('confirm_password')
+        if password != confirm:
+            flash('Passwords match nahi karti!', 'danger')
+            return render_template('register.html')
+        if User.query.filter_by(email=email).first():
+            flash('Yeh email already registered hai!', 'danger')
+            return render_template('register.html')
+        user = User(name=name, email=email, password=generate_password_hash(password))
+        db.session.add(user)
+        db.session.commit()
+        login_user(user)
+        flash(f'Account ban gaya! Welcome, {name}! 🎉', 'success')
+        return redirect(url_for('index'))
     return render_template('register.html')
 
 @app.route('/logout')
+@login_required
 def logout():
-    session.clear()
-    flash('You have been logged out', 'info')
+    logout_user()
+    flash('Successfully logout ho gaye.', 'info')
     return redirect(url_for('index'))
 
-@app.route('/api/cart_count')
-def cart_count_api():
-    if 'user_id' not in session:
-        return jsonify({'count': 0})
-    conn = get_db()
-    row = conn.execute("SELECT SUM(quantity) FROM cart WHERE user_id=?", (session['user_id'],)).fetchone()
-    conn.close()
-    return jsonify({'count': row[0] or 0})
+# ─────────────────────────────────────────────
+# ADMIN ROUTES
+# ─────────────────────────────────────────────
+
+def admin_required(f):
+    from functools import wraps
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not current_user.is_authenticated or not current_user.is_admin:
+            flash('Admin access required!', 'danger')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated
+
+@app.route('/admin')
+@login_required
+@admin_required
+def admin_dashboard():
+    stats = {
+        'total_orders': Order.query.count(),
+        'pending_orders': Order.query.filter_by(status='Pending').count(),
+        'total_products': Product.query.count(),
+        'total_users': User.query.filter_by(is_admin=False).count(),
+        'total_revenue': db.session.query(db.func.sum(Order.total)).filter(Order.status != 'Cancelled').scalar() or 0,
+        'delivered_orders': Order.query.filter_by(status='Delivered').count(),
+    }
+    recent_orders = Order.query.order_by(Order.created_at.desc()).limit(8).all()
+    low_stock = Product.query.filter(Product.stock < 10).all()
+    return render_template('admin/dashboard.html', stats=stats, recent_orders=recent_orders, low_stock=low_stock)
+
+@app.route('/admin/products')
+@login_required
+@admin_required
+def admin_products():
+    cat_filter = request.args.get('cat', type=int)
+    search = request.args.get('q', '')
+    query = Product.query
+    if cat_filter:
+        query = query.filter_by(category_id=cat_filter)
+    if search:
+        query = query.filter(Product.name.ilike(f'%{search}%'))
+    products = query.order_by(Product.created_at.desc()).all()
+    categories = Category.query.all()
+    # product counts per category
+    cat_counts = {}
+    for c in categories:
+        cat_counts[c.id] = Product.query.filter_by(category_id=c.id).count()
+    return render_template('admin/products.html', products=products, categories=categories,
+                           cat_filter=cat_filter, search=search, cat_counts=cat_counts)
+
+@app.route('/admin/products/add', methods=['POST'])
+@login_required
+@admin_required
+def admin_add_product():
+    p = Product(
+        name=request.form['name'],
+        description=request.form['description'],
+        price=float(request.form['price']),
+        original_price=float(request.form['original_price']) if request.form.get('original_price') else None,
+        stock=int(request.form['stock']),
+        category_id=int(request.form['category_id']) if request.form.get('category_id') else None,
+        featured=bool(request.form.get('featured')),
+        image_url=request.form.get('image_url', ''),
+        rating=float(request.form.get('rating', 4.0)),
+    )
+    db.session.add(p)
+    db.session.commit()
+    flash('Product add ho gaya!', 'success')
+    return redirect(url_for('admin_products'))
+
+@app.route('/admin/products/edit/<int:id>', methods=['POST'])
+@login_required
+@admin_required
+def admin_edit_product(id):
+    p = Product.query.get_or_404(id)
+    p.name = request.form['name']
+    p.description = request.form['description']
+    p.price = float(request.form['price'])
+    p.original_price = float(request.form['original_price']) if request.form.get('original_price') else None
+    p.stock = int(request.form['stock'])
+    p.category_id = int(request.form['category_id']) if request.form.get('category_id') else None
+    p.featured = bool(request.form.get('featured'))
+    p.image_url = request.form.get('image_url', p.image_url)
+    p.rating = float(request.form.get('rating', p.rating))
+    p.reviews_count = int(request.form.get('reviews_count', p.reviews_count or 0))
+    db.session.commit()
+    flash('Product update ho gaya!', 'success')
+    return redirect(url_for('admin_products', cat=request.form.get('cat_filter')))
+
+@app.route('/admin/products/delete/<int:id>')
+@login_required
+@admin_required
+def admin_delete_product(id):
+    p = Product.query.get_or_404(id)
+    db.session.delete(p)
+    db.session.commit()
+    flash('Product delete ho gaya!', 'success')
+    return redirect(url_for('admin_products'))
+
+@app.route('/admin/orders')
+@login_required
+@admin_required
+def admin_orders():
+    status_filter = request.args.get('status', '')
+    query = Order.query.order_by(Order.created_at.desc())
+    if status_filter:
+        query = query.filter_by(status=status_filter)
+    orders = query.all()
+    return render_template('admin/orders.html', orders=orders, status_filter=status_filter)
+
+@app.route('/admin/orders/update/<int:id>', methods=['POST'])
+@login_required
+@admin_required
+def admin_update_order(id):
+    order = Order.query.get_or_404(id)
+    order.status = request.form['status']
+    db.session.commit()
+    flash(f'Order #{id} status update ho gaya!', 'success')
+    return redirect(url_for('admin_orders'))
+
+@app.route('/admin/users')
+@login_required
+@admin_required
+def admin_users():
+    users = User.query.order_by(User.created_at.desc()).all()
+    return render_template('admin/users.html', users=users)
+
+@app.route('/admin/users/toggle/<int:id>')
+@login_required
+@admin_required
+def admin_toggle_user(id):
+    user = User.query.get_or_404(id)
+    if user.id != current_user.id:
+        user.is_admin = not user.is_admin
+        db.session.commit()
+        flash('User role update ho gaya!', 'success')
+    return redirect(url_for('admin_users'))
+
+@app.route('/admin/categories', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def admin_categories():
+    if request.method == 'POST':
+        c = Category(name=request.form['name'], icon=request.form.get('icon', '🛍️'))
+        db.session.add(c)
+        db.session.commit()
+        flash('Category add ho gayi!', 'success')
+    categories = Category.query.all()
+    return render_template('admin/categories.html', categories=categories)
+
+@app.route('/admin/categories/delete/<int:id>')
+@login_required
+@admin_required
+def admin_delete_category(id):
+    c = Category.query.get_or_404(id)
+    db.session.delete(c)
+    db.session.commit()
+    flash('Category delete ho gayi!', 'success')
+    return redirect(url_for('admin_categories'))
+
+# ─────────────────────────────────────────────
+# SEED DATA
+# ─────────────────────────────────────────────
+
+def seed_data():
+    if Category.query.count() > 0:
+        return
+    categories = [
+        Category(name='Electronics', icon='💻'),
+        Category(name='Fashion', icon='👗'),
+        Category(name='Home & Living', icon='🏠'),
+        Category(name='Sports', icon='⚽'),
+        Category(name='Beauty', icon='💄'),
+        Category(name='Books', icon='📚'),
+    ]
+    db.session.add_all(categories)
+    db.session.flush()
+
+    products = [
+        Product(name='iPhone 15 Pro Max', description='Latest Apple flagship with titanium design and 48MP camera system.', price=134900, original_price=149900, stock=25, category_id=1, featured=True, rating=4.8, reviews_count=2341, image_url='https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=400&q=80'),
+        Product(name='Samsung Galaxy S24 Ultra', description='AI-powered smartphone with S Pen and 200MP camera.', price=124999, original_price=139999, stock=30, category_id=1, featured=True, rating=4.7, reviews_count=1876, image_url='https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?w=400&q=80'),
+        Product(name='Sony WH-1000XM5 Headphones', description='Industry-leading noise canceling with 30hr battery life.', price=24990, original_price=34990, stock=50, category_id=1, featured=True, rating=4.9, reviews_count=4521, image_url='https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&q=80'),
+        Product(name='MacBook Air M3', description='Supercharged by M3 chip. Fanless design, all-day battery.', price=114900, original_price=124900, stock=15, category_id=1, featured=True, rating=4.9, reviews_count=987, image_url='https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&q=80'),
+        Product(name='Men\'s Premium Jacket', description='Stylish winter jacket with thermal lining. Perfect for cold weather.', price=3499, original_price=5999, stock=80, category_id=2, featured=True, rating=4.5, reviews_count=342, image_url='https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=400&q=80'),
+        Product(name='Women\'s Floral Dress', description='Elegant summer dress with floral print. Available in 5 sizes.', price=1299, original_price=2499, stock=120, category_id=2, featured=True, rating=4.6, reviews_count=567, image_url='https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?w=400&q=80'),
+        Product(name='Nike Air Max 270', description='Maximum comfort running shoes with large Air unit.', price=9999, original_price=13000, stock=45, category_id=4, featured=True, rating=4.7, reviews_count=1234, image_url='https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=80'),
+        Product(name='Smart LED TV 55"', description='4K Ultra HD Smart TV with Dolby Vision and HDR10+.', price=42999, original_price=59999, stock=20, category_id=1, featured=True, rating=4.6, reviews_count=876, image_url='https://images.unsplash.com/photo-1593784991095-a205069470b6?w=400&q=80'),
+        Product(name='Luxury Perfume Set', description='Exclusive French fragrance collection. Gift box included.', price=2499, original_price=3999, stock=60, category_id=5, featured=False, rating=4.8, reviews_count=453, image_url='https://images.unsplash.com/photo-1523293182086-7651a899d37f?w=400&q=80'),
+        Product(name='Yoga Mat Premium', description='Non-slip exercise mat with alignment lines. Eco-friendly material.', price=1299, original_price=1999, stock=90, category_id=4, featured=False, rating=4.5, reviews_count=678, image_url='https://images.unsplash.com/photo-1601925260368-ae2f83cf8b7f?w=400&q=80'),
+        Product(name='Coffee Table Modern', description='Minimalist design coffee table with tempered glass top.', price=8999, original_price=12999, stock=10, category_id=3, featured=False, rating=4.4, reviews_count=234, image_url='https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&q=80'),
+        Product(name='Bestseller Book Bundle', description='Top 5 motivational books to transform your mindset.', price=999, original_price=1799, stock=200, category_id=6, featured=False, rating=4.7, reviews_count=1567, image_url='https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&q=80'),
+    ]
+    db.session.add_all(products)
+
+    admin = User(name='Admin', email='admin@shopnest.com',
+                 password=generate_password_hash('admin123'), is_admin=True)
+    db.session.add(admin)
+    db.session.commit()
+    print("✅ Sample data seeded!")
 
 if __name__ == '__main__':
-    init_db()
+    with app.app_context():
+        db.create_all()
+        seed_data()
     app.run(debug=True, port=5000)

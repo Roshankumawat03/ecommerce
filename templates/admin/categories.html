@@ -1,0 +1,36 @@
+{% extends 'admin/base.html' %}
+{% block title %}Categories{% endblock %}
+{% block page_title %}Category Management{% endblock %}
+
+{% block content %}
+<div class="dashboard-grid-2">
+  <div class="admin-card">
+    <div class="card-header"><h3>Add Category</h3></div>
+    <form method="post" class="category-form">
+      <div class="form-group">
+        <label>Category Name *</label>
+        <input type="text" name="name" required placeholder="e.g. Electronics">
+      </div>
+      <div class="form-group">
+        <label>Icon (Emoji)</label>
+        <input type="text" name="icon" placeholder="e.g. 💻" maxlength="5">
+      </div>
+      <button type="submit" class="btn-admin-primary">Add Category</button>
+    </form>
+  </div>
+
+  <div class="admin-card">
+    <div class="card-header"><h3>All Categories ({{ categories|length }})</h3></div>
+    <div class="cat-manage-list">
+      {% for c in categories %}
+      <div class="cat-manage-item">
+        <span class="cat-icon-big">{{ c.icon }}</span>
+        <span class="cat-manage-name">{{ c.name }}</span>
+        <span class="cat-count">{{ c.products|length }} products</span>
+        <a href="{{ url_for('admin_delete_category', id=c.id) }}" class="btn-delete-sm" onclick="return confirm('Delete category?')"><i class="fas fa-trash"></i></a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

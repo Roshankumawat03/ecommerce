@@ -1,0 +1,375 @@
+{% extends 'admin/base.html' %}
+{% block title %}Products{% endblock %}
+{% block page_title %}Product Management{% endblock %}
+
+{% block content %}
+
+<!-- CATEGORY TABS ROW -->
+<div class="cat-tabs-wrap">
+  <div class="cat-tabs">
+    <a href="{{ url_for('admin_products') }}"
+       class="cat-tab {{ 'active' if not cat_filter }}">
+      🛍️ All
+      <span class="tab-count">{{ products|length }}</span>
+    </a>
+    {% for c in categories %}
+    <a href="{{ url_for('admin_products', cat=c.id) }}"
+       class="cat-tab {{ 'active' if cat_filter == c.id }}">
+      {{ c.icon }} {{ c.name }}
+      <span class="tab-count">{{ cat_counts.get(c.id, 0) }}</span>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- TOP BAR -->
+<div class="admin-card" style="margin-bottom:1.5rem;">
+  <div class="products-topbar">
+    <div class="topbar-search">
+      <form method="get" action="{{ url_for('admin_products') }}" style="display:flex;gap:.5rem;flex-wrap:wrap;">
+        {% if cat_filter %}<input type="hidden" name="cat" value="{{ cat_filter }}">{% endif %}
+        <input type="text" name="q" placeholder="Product naam se dhundo…"
+               value="{{ search }}" class="admin-search-input">
+        <button type="submit" class="btn-admin-secondary"><i class="fas fa-search"></i> Search</button>
+        {% if search %}<a href="{{ url_for('admin_products', cat=cat_filter) }}" class="btn-cancel">✕ Clear</a>{% endif %}
+      </form>
+    </div>
+    <button class="btn-admin-primary" onclick="document.getElementById('addModal').style.display='flex'">
+      <i class="fas fa-plus"></i> Add New Product
+    </button>
+  </div>
+</div>
+
+<!-- PRODUCTS TABLE -->
+<div class="admin-card">
+  <div class="card-header">
+    <h3>
+      {% if cat_filter %}
+        {% for c in categories %}{% if c.id == cat_filter %}{{ c.icon }} {{ c.name }} Products{% endif %}{% endfor %}
+      {% else %}All Products{% endif %}
+      <span style="color:var(--text-muted);font-weight:400;font-size:.9rem;">({{ products|length }})</span>
+    </h3>
+    <input type="text" id="tableSearch" placeholder="Quick filter…" class="admin-search-input" style="width:180px;">
+  </div>
+
+  {% if products %}
+  <div class="table-wrap">
+    <table class="admin-table" id="productsTable">
+      <thead>
+        <tr>
+          <th>#</th><th>Image</th><th>Product Name</th><th>Category</th>
+          <th>Price</th><th>MRP</th><th>Stock</th><th>Rating</th><th>Featured</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in products %}
+        <tr>
+          <td style="color:var(--text-muted);font-size:.8rem;">#{{ p.id }}</td>
+          <td>
+            <img src="{{ p.image_url or 'https://via.placeholder.com/44x44/f0f0f0/888?text=P' }}"
+                 class="table-img" alt=""
+                 onerror="this.src='https://via.placeholder.com/44x44/f0f0f0/888?text=P'">
+          </td>
+          <td>
+            <div class="prod-name-cell">
+              <strong>{{ p.name[:50] }}{% if p.name|length > 50 %}…{% endif %}</strong>
+              {% if p.description %}
+              <span class="prod-desc-mini">{{ p.description[:65] }}{% if p.description|length > 65 %}…{% endif %}</span>
+              {% endif %}
+            </div>
+          </td>
+          <td>
+            {% if p.category %}
+            <a href="{{ url_for('admin_products', cat=p.category_id) }}" class="cat-link-badge">
+              {{ p.category.icon }} {{ p.category.name }}
+            </a>
+            {% else %}<span style="color:var(--text-muted)">—</span>{% endif %}
+          </td>
+          <td><strong style="color:var(--primary)">₹{{ "{:,.0f}".format(p.price) }}</strong></td>
+          <td>
+            {% if p.original_price %}
+            <span style="text-decoration:line-through;color:var(--text-muted);font-size:.85rem;">₹{{ "{:,.0f}".format(p.original_price) }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            <span class="stock-badge {{ 'stock-out' if p.stock==0 else ('stock-low' if p.stock<10 else 'stock-ok') }}">
+              {% if p.stock==0 %}❌ 0{% elif p.stock<10 %}⚠️ {{ p.stock }}{% else %}✅ {{ p.stock }}{% endif %}
+            </span>
+          </td>
+          <td><span class="rating-mini">⭐ {{ p.rating }}</span></td>
+          <td>{% if p.featured %}<span class="badge-yes">⭐ Yes</span>{% else %}<span class="badge-no">No</span>{% endif %}</td>
+          <td>
+            <div class="action-td">
+              <button class="btn-edit" title="Edit"
+                onclick="openEdit({{ p.id }},{{ p.name|tojson }},{{ (p.description or '')|tojson }},{{ p.price }},{{ p.original_price or 0 }},{{ p.stock }},{{ p.category_id or 0 }},{{ 1 if p.featured else 0 }},{{ (p.image_url or '')|tojson }},{{ p.rating }},{{ p.reviews_count or 0 }})">
+                <i class="fas fa-edit"></i>
+              </button>
+              <a href="{{ url_for('product_detail', id=p.id) }}" target="_blank" class="btn-view" title="View on site">
+                <i class="fas fa-external-link-alt"></i>
+              </a>
+              <a href="{{ url_for('admin_delete_product', id=p.id) }}" class="btn-delete" title="Delete"
+                 onclick="return confirm('⚠️ Delete karna chahte ho?\n{{ p.name[:40]|replace("'","\\'") }}')">
+                <i class="fas fa-trash"></i>
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-admin-state">
+    <div style="font-size:3rem;margin-bottom:.8rem;">
+      {% if cat_filter %}{% for c in categories %}{% if c.id==cat_filter %}{{ c.icon }}{% endif %}{% endfor %}{% else %}📦{% endif %}
+    </div>
+    <h3>Koi product nahi mila</h3>
+    <p>{% if search %}"{{ search }}" se koi match nahi.{% elif cat_filter %}Is category mein abhi product nahi hai.{% else %}Pehla product add karo!{% endif %}</p>
+    <button class="btn-admin-primary" style="margin-top:1rem;"
+            onclick="document.getElementById('addModal').style.display='flex'">
+      <i class="fas fa-plus"></i> Product Add Karo
+    </button>
+  </div>
+  {% endif %}
+</div>
+
+
+<!-- ══════════ ADD PRODUCT MODAL ══════════ -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal-box modal-large">
+    <div class="modal-header">
+      <h3><i class="fas fa-plus-circle"></i> Add New Product</h3>
+      <button onclick="document.getElementById('addModal').style.display='none'">✕</button>
+    </div>
+    <form method="post" action="{{ url_for('admin_add_product') }}" class="modal-form">
+
+      <div class="form-section-label">📝 Basic Information</div>
+      <div class="form-row-3">
+        <div class="form-group span-2">
+          <label>Product Name <span class="req">*</span></label>
+          <input type="text" name="name" required placeholder="e.g. Sony WH-1000XM5 Headphones">
+        </div>
+        <div class="form-group">
+          <label>Category <span class="req">*</span></label>
+          <select name="category_id" id="addCategorySelect">
+            <option value="">-- Select Category --</option>
+            {% for c in categories %}
+            <option value="{{ c.id }}" {{ 'selected' if cat_filter==c.id }}>{{ c.icon }} {{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <textarea name="description" rows="3" placeholder="Product ke baare mein detail mein likho…"></textarea>
+      </div>
+
+      <div class="form-section-label">💰 Pricing &amp; Stock</div>
+      <div class="form-row-4">
+        <div class="form-group">
+          <label>Selling Price (₹) <span class="req">*</span></label>
+          <input type="number" name="price" step="0.01" required placeholder="999" id="addPrice" oninput="calcDiscount('add')">
+        </div>
+        <div class="form-group">
+          <label>MRP / Original (₹)</label>
+          <input type="number" name="original_price" step="0.01" placeholder="1499" id="addOriginal" oninput="calcDiscount('add')">
+        </div>
+        <div class="form-group">
+          <label>Stock <span class="req">*</span></label>
+          <input type="number" name="stock" required min="0" placeholder="50">
+        </div>
+        <div class="form-group">
+          <label>Rating (1–5)</label>
+          <input type="number" name="rating" step="0.1" min="1" max="5" value="4.0">
+        </div>
+      </div>
+      <div class="discount-preview" id="addDiscountPreview" style="display:none;">
+        <i class="fas fa-tag"></i> Discount: <strong id="addDiscountVal">0%</strong> — Customer bachega <strong id="addSaveVal">₹0</strong>
+      </div>
+
+      <div class="form-section-label">🖼️ Product Image</div>
+      <div class="form-group">
+        <label>Image URL</label>
+        <div class="img-url-wrap">
+          <input type="url" name="image_url" id="addImageUrl" placeholder="https://images.unsplash.com/…" oninput="previewImg('addImageUrl','addImgPreview','addImgPlaceholder')">
+          <div class="img-preview-box">
+            <img id="addImgPreview" src="" alt="" style="display:none;" onerror="this.style.display='none';document.getElementById('addImgPlaceholder').style.display='flex'">
+            <span id="addImgPlaceholder" class="img-placeholder"><i class="fas fa-image"></i> Preview</span>
+          </div>
+        </div>
+        <small style="color:var(--text-muted)">Tip: Unsplash ya kisi bhi site ka direct image link paste karo</small>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Reviews Count</label>
+          <input type="number" name="reviews_count" min="0" value="0">
+        </div>
+        <div class="form-group check-group" style="padding-top:1.8rem;">
+          <label class="checkbox-label">
+            <input type="checkbox" name="featured">
+            <span class="checkmark"></span>
+            ⭐ Featured (Homepage pe dikhega)
+          </label>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" onclick="document.getElementById('addModal').style.display='none'">Cancel</button>
+        <button type="submit" class="btn-admin-primary"><i class="fas fa-plus"></i> Add Product</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<!-- ══════════ EDIT PRODUCT MODAL ══════════ -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal-box modal-large">
+    <div class="modal-header">
+      <h3><i class="fas fa-edit"></i> Edit Product</h3>
+      <button onclick="document.getElementById('editModal').style.display='none'">✕</button>
+    </div>
+    <form method="post" id="editForm" class="modal-form">
+
+      <div class="form-section-label">📝 Basic Information</div>
+      <div class="form-row-3">
+        <div class="form-group span-2">
+          <label>Product Name <span class="req">*</span></label>
+          <input type="text" name="name" id="editName" required>
+        </div>
+        <div class="form-group">
+          <label>Category</label>
+          <select name="category_id" id="editCategory">
+            <option value="">-- Select --</option>
+            {% for c in categories %}<option value="{{ c.id }}">{{ c.icon }} {{ c.name }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <textarea name="description" id="editDesc" rows="3"></textarea>
+      </div>
+
+      <div class="form-section-label">💰 Pricing &amp; Stock</div>
+      <div class="form-row-4">
+        <div class="form-group">
+          <label>Selling Price (₹) <span class="req">*</span></label>
+          <input type="number" name="price" id="editPrice" step="0.01" required oninput="calcDiscount('edit')">
+        </div>
+        <div class="form-group">
+          <label>MRP / Original (₹)</label>
+          <input type="number" name="original_price" id="editOriginal" step="0.01" oninput="calcDiscount('edit')">
+        </div>
+        <div class="form-group">
+          <label>Stock <span class="req">*</span></label>
+          <input type="number" name="stock" id="editStock" required min="0">
+        </div>
+        <div class="form-group">
+          <label>Rating</label>
+          <input type="number" name="rating" id="editRating" step="0.1" min="1" max="5">
+        </div>
+      </div>
+      <div class="discount-preview" id="editDiscountPreview" style="display:none;">
+        <i class="fas fa-tag"></i> Discount: <strong id="editDiscountVal">0%</strong> — Save: <strong id="editSaveVal">₹0</strong>
+      </div>
+
+      <div class="form-section-label">🖼️ Product Image</div>
+      <div class="form-group">
+        <label>Image URL</label>
+        <div class="img-url-wrap">
+          <input type="url" name="image_url" id="editImage" oninput="previewImg('editImage','editImgPreview','editImgPlaceholder')">
+          <div class="img-preview-box">
+            <img id="editImgPreview" src="" alt="" style="display:none;" onerror="this.style.display='none';document.getElementById('editImgPlaceholder').style.display='flex'">
+            <span id="editImgPlaceholder" class="img-placeholder"><i class="fas fa-image"></i> Preview</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Reviews Count</label>
+          <input type="number" name="reviews_count" id="editReviews" min="0">
+        </div>
+        <div class="form-group check-group" style="padding-top:1.8rem;">
+          <label class="checkbox-label">
+            <input type="checkbox" name="featured" id="editFeatured">
+            <span class="checkmark"></span>
+            ⭐ Featured Product
+          </label>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" onclick="document.getElementById('editModal').style.display='none'">Cancel</button>
+        <button type="submit" class="btn-admin-primary"><i class="fas fa-save"></i> Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<script>
+function openEdit(id, name, desc, price, orig, stock, catId, featured, image, rating, reviews) {
+  document.getElementById('editForm').action = '/admin/products/edit/' + id;
+  document.getElementById('editName').value = name;
+  document.getElementById('editDesc').value = desc;
+  document.getElementById('editPrice').value = price;
+  document.getElementById('editOriginal').value = orig || '';
+  document.getElementById('editStock').value = stock;
+  document.getElementById('editRating').value = rating || 4.0;
+  document.getElementById('editImage').value = image;
+  document.getElementById('editFeatured').checked = !!featured;
+  document.getElementById('editReviews').value = reviews || 0;
+  const sel = document.getElementById('editCategory');
+  for (let opt of sel.options) opt.selected = parseInt(opt.value) === catId;
+  if (image) {
+    const img = document.getElementById('editImgPreview');
+    img.src = image; img.style.display = 'block';
+    document.getElementById('editImgPlaceholder').style.display = 'none';
+  } else {
+    document.getElementById('editImgPreview').style.display = 'none';
+    document.getElementById('editImgPlaceholder').style.display = 'flex';
+  }
+  calcDiscount('edit');
+  document.getElementById('editModal').style.display = 'flex';
+}
+
+function previewImg(inputId, imgId, placeholderId) {
+  const url = document.getElementById(inputId).value.trim();
+  const img = document.getElementById(imgId);
+  const ph  = document.getElementById(placeholderId);
+  if (url) {
+    img.src = url; img.style.display = 'block';
+    if (ph) ph.style.display = 'none';
+    img.onerror = () => { img.style.display = 'none'; if (ph) ph.style.display = 'flex'; };
+  } else {
+    img.style.display = 'none';
+    if (ph) ph.style.display = 'flex';
+  }
+}
+
+function calcDiscount(prefix) {
+  const price = parseFloat(document.getElementById(prefix+'Price').value);
+  const orig  = parseFloat(document.getElementById(prefix+'Original').value);
+  const preview = document.getElementById(prefix+'DiscountPreview');
+  if (price && orig && orig > price) {
+    const pct  = Math.round((orig - price) / orig * 100);
+    const save = Math.round(orig - price).toLocaleString('en-IN');
+    document.getElementById(prefix+'DiscountVal').textContent = pct + '%';
+    document.getElementById(prefix+'SaveVal').textContent = '₹' + save;
+    preview.style.display = 'flex';
+  } else {
+    preview.style.display = 'none';
+  }
+}
+
+// Quick table filter
+document.getElementById('tableSearch').addEventListener('input', function() {
+  const term = this.value.toLowerCase();
+  document.querySelectorAll('#productsTable tbody tr').forEach(row => {
+    row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
+  });
+});
+</script>
+{% endblock %}

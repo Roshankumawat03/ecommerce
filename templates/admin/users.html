@@ -1,0 +1,50 @@
+{% extends 'admin/base.html' %}
+{% block title %}Users{% endblock %}
+{% block page_title %}User Management{% endblock %}
+
+{% block content %}
+<div class="admin-card">
+  <div class="card-header">
+    <h3>All Users ({{ users|length }})</h3>
+  </div>
+  <div class="table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr><th>#</th><th>Name</th><th>Email</th><th>Role</th><th>Joined</th><th>Orders</th><th>Action</th></tr>
+      </thead>
+      <tbody>
+        {% for user in users %}
+        <tr>
+          <td>{{ user.id }}</td>
+          <td>
+            <div class="user-cell">
+              <div class="user-avatar-sm">{{ user.name[0].upper() }}</div>
+              {{ user.name }}
+            </div>
+          </td>
+          <td>{{ user.email }}</td>
+          <td>
+            {% if user.is_admin %}
+            <span class="badge-admin">Admin</span>
+            {% else %}
+            <span class="badge-user">Customer</span>
+            {% endif %}
+          </td>
+          <td>{{ user.created_at.strftime('%d %b %Y') }}</td>
+          <td>{{ user.orders|length }}</td>
+          <td>
+            {% if user.id != current_user.id %}
+            <a href="{{ url_for('admin_toggle_user', id=user.id) }}" class="btn-toggle {{ 'demote' if user.is_admin }}" onclick="return confirm('Role change karna hai?')">
+              {% if user.is_admin %}Remove Admin{% else %}Make Admin{% endif %}
+            </a>
+            {% else %}
+            <span class="text-muted">You</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

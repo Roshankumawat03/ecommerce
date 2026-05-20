@@ -1,0 +1,335 @@
+{% extends 'base.html' %}
+{% block title %}{{ category.icon }} {{ category.name }}{% endblock %}
+
+{% block content %}
+
+<!-- CATEGORY HERO BANNER -->
+<div class="cat-hero cat-hero-{{ category.id % 6 }}">
+  <div class="container">
+    <div class="cat-hero-inner">
+      <div class="cat-hero-left">
+        <div class="cat-hero-breadcrumb">
+          <a href="{{ url_for('index') }}">Home</a>
+          <span>›</span>
+          <a href="{{ url_for('products') }}">Shop</a>
+          <span>›</span>
+          <span>{{ category.name }}</span>
+        </div>
+        <div class="cat-hero-icon">{{ category.icon }}</div>
+        <h1>{{ category.name }}</h1>
+        <p>{{ products.total }} products available in this category</p>
+        <div class="cat-hero-meta">
+          <span><i class="fas fa-tag"></i> ₹{{ "{:,.0f}".format(price_min|int) }} – ₹{{ "{:,.0f}".format(price_max|int) }}</span>
+          <span><i class="fas fa-fire"></i> Trending now</span>
+          <span><i class="fas fa-truck"></i> Free delivery available</span>
+        </div>
+      </div>
+      <div class="cat-hero-right">
+        {% if products.items %}
+        <div class="cat-preview-grid">
+          {% for p in products.items[:4] %}
+          <a href="{{ url_for('product_detail', id=p.id) }}" class="cat-preview-item">
+            <img src="{{ p.image_url or 'https://via.placeholder.com/120x120/f0f0f0/888?text=Product' }}" alt="{{ p.name }}">
+          </a>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- OTHER CATEGORIES QUICK NAV -->
+<div class="cat-quick-nav">
+  <div class="container">
+    <div class="cat-nav-scroll">
+      <a href="{{ url_for('products') }}" class="cat-nav-pill">
+        🛍️ All
+      </a>
+      {% for cat in categories %}
+      <a href="{{ url_for('category_page', id=cat.id) }}"
+         class="cat-nav-pill {% if cat.id == category.id %}active{% endif %}">
+        {{ cat.icon }} {{ cat.name }}
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- MAIN SHOP LAYOUT -->
+<div class="container shop-layout" style="margin-top:2rem;">
+
+  <!-- SIDEBAR -->
+  <aside class="shop-sidebar">
+
+    <!-- SEARCH IN CATEGORY -->
+    <div class="sidebar-card">
+      <h3><i class="fas fa-search"></i> Search in {{ category.name }}</h3>
+      <form action="{{ url_for('category_page', id=category.id) }}" method="get">
+        <input type="hidden" name="sort" value="{{ sort }}">
+        <div class="cat-search-wrap">
+          <input type="text" name="q" placeholder="Product name…" value="{{ search }}">
+          <button type="submit"><i class="fas fa-search"></i></button>
+        </div>
+      </form>
+    </div>
+
+    <!-- PRICE FILTER -->
+    <div class="sidebar-card">
+      <h3><i class="fas fa-rupee-sign"></i> Price Range</h3>
+      <form action="{{ url_for('category_page', id=category.id) }}" method="get" id="priceForm">
+        <input type="hidden" name="sort" value="{{ sort }}">
+        {% if search %}<input type="hidden" name="q" value="{{ search }}">{% endif %}
+        <div class="price-slider-labels">
+          <span>₹{{ "{:,.0f}".format(price_min|int) }}</span>
+          <span>₹{{ "{:,.0f}".format(price_max|int) }}</span>
+        </div>
+        <div class="price-range">
+          <input type="number" name="min_price" placeholder="Min ₹"
+                 value="{{ min_price|int if min_price else '' }}" min="{{ price_min|int }}" max="{{ price_max|int }}">
+          <span>—</span>
+          <input type="number" name="max_price" placeholder="Max ₹"
+                 value="{{ max_price|int if max_price else '' }}" min="{{ price_min|int }}" max="{{ price_max|int }}">
+        </div>
+        <button type="submit" class="btn-filter">Apply Filter</button>
+        {% if min_price or max_price %}
+        <a href="{{ url_for('category_page', id=category.id) }}" class="clear-filter">✕ Clear Filter</a>
+        {% endif %}
+      </form>
+    </div>
+
+    <!-- SORT -->
+    <div class="sidebar-card">
+      <h3><i class="fas fa-sort"></i> Sort By</h3>
+      <div class="sort-options">
+        {% set sorts = [
+          ('newest', '🆕 Newest First'),
+          ('price_asc', '💰 Price: Low → High'),
+          ('price_desc', '💎 Price: High → Low'),
+          ('name', '🔤 Name A-Z'),
+          ('rating', '⭐ Top Rated'),
+        ] %}
+        {% for val, label in sorts %}
+        <a href="{{ url_for('category_page', id=category.id, sort=val, q=search, min_price=min_price, max_price=max_price) }}"
+           class="{{ 'active' if sort == val }}">{{ label }}</a>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- OTHER CATEGORIES -->
+    <div class="sidebar-card">
+      <h3><i class="fas fa-th-large"></i> Other Categories</h3>
+      <ul class="cat-list">
+        <li><a href="{{ url_for('products') }}">🛍️ All Products</a></li>
+        {% for cat in categories %}
+        {% if cat.id != category.id %}
+        <li>
+          <a href="{{ url_for('category_page', id=cat.id) }}">
+            {{ cat.icon }} {{ cat.name }}
+            <span class="cat-count-badge">{{ cat.products|length }}</span>
+          </a>
+        </li>
+        {% endif %}
+        {% endfor %}
+      </ul>
+    </div>
+
+  </aside>
+
+  <!-- PRODUCTS AREA -->
+  <div class="shop-main">
+
+    <!-- TOP BAR -->
+    <div class="shop-topbar">
+      <div class="topbar-left">
+        {% if search %}
+        <div class="search-info">
+          <i class="fas fa-search"></i>
+          "<strong>{{ search }}</strong>" — {{ products.total }} results
+          <a href="{{ url_for('category_page', id=category.id) }}">✕</a>
+        </div>
+        {% else %}
+        <span class="result-count">
+          <strong>{{ products.total }}</strong> products
+          {% if min_price or max_price %}
+          <span class="filter-active-tag">
+            ₹{{ "{:,.0f}".format(min_price|int if min_price else price_min|int) }}
+            – ₹{{ "{:,.0f}".format(max_price|int if max_price else price_max|int) }}
+            <a href="{{ url_for('category_page', id=category.id) }}">✕</a>
+          </span>
+          {% endif %}
+        </span>
+        {% endif %}
+      </div>
+      <div class="topbar-right">
+        <!-- Mobile sort dropdown -->
+        <select class="sort-mobile-select" onchange="window.location=this.value">
+          {% set sorts = [
+            ('newest', 'Newest'),
+            ('price_asc', 'Price: Low → High'),
+            ('price_desc', 'Price: High → Low'),
+            ('name', 'Name A-Z'),
+            ('rating', 'Top Rated'),
+          ] %}
+          {% for val, label in sorts %}
+          <option value="{{ url_for('category_page', id=category.id, sort=val, q=search) }}"
+                  {{ 'selected' if sort == val }}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <!-- View toggle -->
+        <div class="view-toggle">
+          <button id="gridViewBtn" class="view-btn active" onclick="setView('grid')" title="Grid View">
+            <i class="fas fa-th"></i>
+          </button>
+          <button id="listViewBtn" class="view-btn" onclick="setView('list')" title="List View">
+            <i class="fas fa-list"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    {% if products.items %}
+
+    <!-- PRODUCTS GRID -->
+    <div class="products-grid" id="productsContainer">
+      {% for product in products.items %}
+      <div class="product-card">
+        {% if product.original_price and product.original_price > product.price %}
+        <div class="badge-sale">{{ ((product.original_price - product.price) / product.original_price * 100)|int }}% OFF</div>
+        {% endif %}
+        {% if product.stock == 0 %}
+        <div class="badge-out">Out of Stock</div>
+        {% elif product.stock < 5 %}
+        <div class="badge-low">Only {{ product.stock }} left</div>
+        {% endif %}
+
+        <a href="{{ url_for('product_detail', id=product.id) }}" class="product-img-wrap">
+          <img src="{{ product.image_url or 'https://via.placeholder.com/300x300/f0f0f0/888?text=No+Image' }}"
+               alt="{{ product.name }}" loading="lazy">
+          <div class="img-overlay">
+            <span><i class="fas fa-eye"></i> Quick View</span>
+          </div>
+        </a>
+
+        <div class="product-info">
+          <h3><a href="{{ url_for('product_detail', id=product.id) }}">{{ product.name }}</a></h3>
+
+          <div class="product-rating">
+            <div class="stars-row">
+              {% for i in range(5) %}
+                {% if i < product.rating|int %}
+                  <i class="fas fa-star"></i>
+                {% elif (product.rating - product.rating|int) >= 0.5 and i == product.rating|int %}
+                  <i class="fas fa-star-half-alt"></i>
+                {% else %}
+                  <i class="far fa-star"></i>
+                {% endif %}
+              {% endfor %}
+            </div>
+            <span class="rating-val">{{ product.rating }}</span>
+            <span class="rating-cnt">({{ product.reviews_count }})</span>
+          </div>
+
+          {% if product.description %}
+          <p class="product-desc-short">{{ product.description[:80] }}{% if product.description|length > 80 %}…{% endif %}</p>
+          {% endif %}
+
+          <div class="product-price">
+            <span class="price-current">₹{{ "{:,.0f}".format(product.price) }}</span>
+            {% if product.original_price and product.original_price > product.price %}
+            <span class="price-old">₹{{ "{:,.0f}".format(product.original_price) }}</span>
+            <span class="you-save">Save ₹{{ "{:,.0f}".format(product.original_price - product.price) }}</span>
+            {% endif %}
+          </div>
+
+          {% if product.stock > 0 %}
+          <form action="{{ url_for('add_to_cart', id=product.id) }}" method="post" class="add-form">
+            <input type="hidden" name="qty" value="1">
+            <button type="submit" class="add-cart-btn">
+              <i class="fas fa-shopping-bag"></i> Add to Cart
+            </button>
+          </form>
+          {% else %}
+          <button class="add-cart-btn disabled" disabled>
+            <i class="fas fa-times-circle"></i> Out of Stock
+          </button>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- PAGINATION -->
+    {% if products.pages > 1 %}
+    <div class="pagination">
+      {% if products.has_prev %}
+      <a href="{{ url_for('category_page', id=category.id, page=products.prev_num, sort=sort, q=search, min_price=min_price, max_price=max_price) }}"
+         class="page-btn"><i class="fas fa-chevron-left"></i> Prev</a>
+      {% endif %}
+
+      {% for pg in products.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+        {% if pg %}
+        <a href="{{ url_for('category_page', id=category.id, page=pg, sort=sort, q=search, min_price=min_price, max_price=max_price) }}"
+           class="page-btn {{ 'active' if pg == products.page }}">{{ pg }}</a>
+        {% else %}
+        <span class="page-btn page-dots">…</span>
+        {% endif %}
+      {% endfor %}
+
+      {% if products.has_next %}
+      <a href="{{ url_for('category_page', id=category.id, page=products.next_num, sort=sort, q=search, min_price=min_price, max_price=max_price) }}"
+         class="page-btn">Next <i class="fas fa-chevron-right"></i></a>
+      {% endif %}
+    </div>
+    <div class="pagination-info">
+      Page {{ products.page }} of {{ products.pages }} — {{ products.total }} total products
+    </div>
+    {% endif %}
+
+    {% else %}
+    <!-- EMPTY STATE -->
+    <div class="empty-state">
+      <div class="empty-icon">{{ category.icon }}</div>
+      <h3>Is category mein koi product nahi mila</h3>
+      <p>
+        {% if search or min_price or max_price %}
+        Apna filter ya search change karke try karein.
+        <br><a href="{{ url_for('category_page', id=category.id) }}" class="clear-filter-link">Sab filters hataao</a>
+        {% else %}
+        Abhi is category mein koi product available nahi hai.
+        {% endif %}
+      </p>
+      <div class="empty-actions">
+        <a href="{{ url_for('category_page', id=category.id) }}" class="btn-primary">Reset Filters</a>
+        <a href="{{ url_for('products') }}" class="btn-outline-dark">All Products Dekho</a>
+      </div>
+    </div>
+    {% endif %}
+
+  </div><!-- /shop-main -->
+</div><!-- /shop-layout -->
+
+<script>
+// ─── GRID / LIST VIEW TOGGLE ───
+function setView(type) {
+  const container = document.getElementById('productsContainer');
+  const gridBtn = document.getElementById('gridViewBtn');
+  const listBtn = document.getElementById('listViewBtn');
+  if (!container) return;
+  if (type === 'list') {
+    container.classList.add('list-view');
+    gridBtn.classList.remove('active');
+    listBtn.classList.add('active');
+    localStorage.setItem('shopView', 'list');
+  } else {
+    container.classList.remove('list-view');
+    gridBtn.classList.add('active');
+    listBtn.classList.remove('active');
+    localStorage.setItem('shopView', 'grid');
+  }
+}
+// Restore saved view
+const savedView = localStorage.getItem('shopView');
+if (savedView === 'list') setView('list');
+</script>
+{% endblock %}

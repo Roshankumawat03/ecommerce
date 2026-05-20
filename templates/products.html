@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+{% block title %}Products{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <h1>All Products</h1>
+    <p>{{ products.total }} products available</p>
+  </div>
+</div>
+
+<div class="container shop-layout">
+  <!-- SIDEBAR -->
+  <aside class="shop-sidebar">
+    <div class="sidebar-card">
+      <h3>Categories</h3>
+      <ul class="cat-list">
+        <li><a href="{{ url_for('products') }}" class="{{ 'active' if not current_category }}">All Products</a></li>
+        {% for cat in categories %}
+        <li><a href="{{ url_for('products', category=cat.id) }}" class="{{ 'active' if current_category == cat.id }}">{{ cat.icon }} {{ cat.name }}</a></li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="sidebar-card">
+      <h3>Price Range</h3>
+      <form action="{{ url_for('products') }}" method="get" id="priceForm">
+        {% if current_category %}<input type="hidden" name="category" value="{{ current_category }}">{% endif %}
+        {% if search %}<input type="hidden" name="q" value="{{ search }}">{% endif %}
+        <input type="hidden" name="sort" value="{{ sort }}">
+        <div class="price-range">
+          <input type="number" name="min_price" placeholder="Min ₹" value="{{ request.args.get('min_price','') }}">
+          <span>—</span>
+          <input type="number" name="max_price" placeholder="Max ₹" value="{{ request.args.get('max_price','') }}">
+        </div>
+        <button type="submit" class="btn-filter">Apply</button>
+      </form>
+    </div>
+
+    <div class="sidebar-card">
+      <h3>Sort By</h3>
+      <div class="sort-options">
+        <a href="{{ url_for('products', category=current_category, q=search, sort='newest') }}" class="{{ 'active' if sort=='newest' }}">Newest</a>
+        <a href="{{ url_for('products', category=current_category, q=search, sort='price_asc') }}" class="{{ 'active' if sort=='price_asc' }}">Price: Low → High</a>
+        <a href="{{ url_for('products', category=current_category, q=search, sort='price_desc') }}" class="{{ 'active' if sort=='price_desc' }}">Price: High → Low</a>
+        <a href="{{ url_for('products', category=current_category, q=search, sort='name') }}" class="{{ 'active' if sort=='name' }}">Name A-Z</a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- PRODUCTS -->
+  <div class="shop-main">
+    {% if search %}
+    <div class="search-info">
+      <i class="fas fa-search"></i> "{{ search }}" ke liye {{ products.total }} results
+      <a href="{{ url_for('products') }}">✕ Clear</a>
+    </div>
+    {% endif %}
+
+    {% if products.items %}
+    <div class="products-grid">
+      {% for product in products.items %}
+      <div class="product-card">
+        {% if product.original_price and product.original_price > product.price %}
+        <div class="badge-sale">{{ ((product.original_price - product.price) / product.original_price * 100)|int }}% OFF</div>
+        {% endif %}
+        {% if product.stock < 5 %}<div class="badge-low">Low Stock</div>{% endif %}
+        <a href="{{ url_for('product_detail', id=product.id) }}" class="product-img-wrap">
+          <img src="{{ product.image_url or 'https://via.placeholder.com/300x300/f0f0f0/888?text=No+Image' }}" alt="{{ product.name }}" loading="lazy">
+        </a>
+        <div class="product-info">
+          {% if product.category %}
+          <span class="product-cat">{{ product.category.icon }} {{ product.category.name }}</span>
+          {% endif %}
+          <h3><a href="{{ url_for('product_detail', id=product.id) }}">{{ product.name }}</a></h3>
+          <div class="product-rating">
+            <span>⭐ {{ product.rating }}</span>
+            <span>({{ product.reviews_count }})</span>
+          </div>
+          <div class="product-price">
+            <span class="price-current">₹{{ "{:,.0f}".format(product.price) }}</span>
+            {% if product.original_price %}<span class="price-old">₹{{ "{:,.0f}".format(product.original_price) }}</span>{% endif %}
+          </div>
+          {% if product.stock > 0 %}
+          <form action="{{ url_for('add_to_cart', id=product.id) }}" method="post">
+            <input type="hidden" name="qty" value="1">
+            <button type="submit" class="add-cart-btn"><i class="fas fa-shopping-bag"></i> Add to Cart</button>
+          </form>
+          {% else %}
+          <button class="add-cart-btn disabled" disabled>Out of Stock</button>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- PAGINATION -->
+    {% if products.pages > 1 %}
+    <div class="pagination">
+      {% if products.has_prev %}
+      <a href="{{ url_for('products', page=products.prev_num, category=current_category, q=search, sort=sort) }}" class="page-btn">← Prev</a>
+      {% endif %}
+      {% for p in products.iter_pages() %}
+        {% if p %}
+        <a href="{{ url_for('products', page=p, category=current_category, q=search, sort=sort) }}" class="page-btn {{ 'active' if p == products.page }}">{{ p }}</a>
+        {% else %}
+        <span class="page-btn">…</span>
+        {% endif %}
+      {% endfor %}
+      {% if products.has_next %}
+      <a href="{{ url_for('products', page=products.next_num, category=current_category, q=search, sort=sort) }}" class="page-btn">Next →</a>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">🔍</div>
+      <h3>Koi product nahi mila</h3>
+      <p>Apna search ya filter change karein.</p>
+      <a href="{{ url_for('products') }}" class="btn-primary">Sab Products Dekho</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,61 @@
+{% extends 'admin/base.html' %}
+{% block title %}Orders{% endblock %}
+{% block page_title %}Order Management{% endblock %}
+
+{% block content %}
+<div class="admin-card">
+  <div class="card-header">
+    <h3>All Orders ({{ orders|length }})</h3>
+    <div class="filter-tabs">
+      <a href="{{ url_for('admin_orders') }}" class="{{ 'active' if not status_filter }}">All</a>
+      <a href="{{ url_for('admin_orders', status='Pending') }}" class="{{ 'active' if status_filter == 'Pending' }}">Pending</a>
+      <a href="{{ url_for('admin_orders', status='Processing') }}" class="{{ 'active' if status_filter == 'Processing' }}">Processing</a>
+      <a href="{{ url_for('admin_orders', status='Shipped') }}" class="{{ 'active' if status_filter == 'Shipped' }}">Shipped</a>
+      <a href="{{ url_for('admin_orders', status='Delivered') }}" class="{{ 'active' if status_filter == 'Delivered' }}">Delivered</a>
+      <a href="{{ url_for('admin_orders', status='Cancelled') }}" class="{{ 'active' if status_filter == 'Cancelled' }}">Cancelled</a>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table class="admin-table">
+      <thead>
+        <tr><th>#ID</th><th>Customer</th><th>Items</th><th>Total</th><th>Payment</th><th>Address</th><th>Status</th><th>Date</th><th>Action</th></tr>
+      </thead>
+      <tbody>
+        {% for order in orders %}
+        <tr>
+          <td><strong>#{{ order.id }}</strong></td>
+          <td>
+            {% if order.customer %}
+            {{ order.customer.name }}<br><small>{{ order.customer.email }}</small>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% for item in order.items[:2] %}
+            <div class="order-item-mini">{{ item.product.name[:20] if item.product else '?' }}… ×{{ item.quantity }}</div>
+            {% endfor %}
+            {% if order.items|length > 2 %}<small>+{{ order.items|length - 2 }} more</small>{% endif %}
+          </td>
+          <td><strong>₹{{ "{:,.0f}".format(order.total) }}</strong></td>
+          <td>{{ order.payment_method }}</td>
+          <td><small>{{ (order.address or '')[:40] }}…</small></td>
+          <td><span class="badge-status status-{{ order.status.lower() }}">{{ order.status }}</span></td>
+          <td>{{ order.created_at.strftime('%d %b %Y') }}</td>
+          <td>
+            <form method="post" action="{{ url_for('admin_update_order', id=order.id) }}" class="inline-form">
+              <select name="status" onchange="this.form.submit()">
+                {% for s in ['Pending','Processing','Shipped','Delivered','Cancelled'] %}
+                <option {{ 'selected' if order.status == s }}>{{ s }}</option>
+                {% endfor %}
+              </select>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if not orders %}
+  <div class="no-data-center">No orders found.</div>
+  {% endif %}
+</div>
+{% endblock %}

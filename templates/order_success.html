@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Order Placed!{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="success-page">
+    <div class="success-icon">🎉</div>
+    <h1>Order Successfully Place Ho Gaya!</h1>
+    <p>Order ID: <strong>#{{ order.id }}</strong></p>
+    <p>Aapka order confirm ho gaya hai. Delivery 3-5 business days mein hogi.</p>
+    <div class="order-detail-box">
+      <div class="detail-row"><span>Order Total:</span><strong>₹{{ "{:,.0f}".format(order.total) }}</strong></div>
+      <div class="detail-row"><span>Payment:</span><strong>{{ order.payment_method }}</strong></div>
+      <div class="detail-row"><span>Status:</span><strong class="status pending">{{ order.status }}</strong></div>
+      <div class="detail-row"><span>Address:</span><strong>{{ order.address }}</strong></div>
+    </div>
+    <div class="success-actions">
+      <a href="{{ url_for('my_orders') }}" class="btn-primary">My Orders Dekho</a>
+      <a href="{{ url_for('products') }}" class="btn-outline">Continue Shopping</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Admin{% endblock %} — ShopNest Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+</head>
+<body class="admin-body">
+
+<div class="admin-layout">
+  <!-- SIDEBAR -->
+  <aside class="admin-sidebar" id="adminSidebar">
+    <div class="sidebar-header">
+      <div class="admin-logo">🛍️ ShopNest</div>
+      <span class="admin-label">Admin Panel</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a href="{{ url_for('admin_dashboard') }}" class="{{ 'active' if request.endpoint == 'admin_dashboard' }}">
+        <i class="fas fa-chart-line"></i> <span>Dashboard</span>
+      </a>
+      <a href="{{ url_for('admin_products') }}" class="{{ 'active' if request.endpoint in ['admin_products','admin_add_product','admin_edit_product'] }}">
+        <i class="fas fa-box"></i> <span>Products</span>
+      </a>
+      <a href="{{ url_for('admin_orders') }}" class="{{ 'active' if request.endpoint == 'admin_orders' }}">
+        <i class="fas fa-shopping-cart"></i> <span>Orders</span>
+      </a>
+      <a href="{{ url_for('admin_users') }}" class="{{ 'active' if request.endpoint == 'admin_users' }}">
+        <i class="fas fa-users"></i> <span>Users</span>
+      </a>
+      <a href="{{ url_for('admin_categories') }}" class="{{ 'active' if request.endpoint == 'admin_categories' }}">
+        <i class="fas fa-tags"></i> <span>Categories</span>
+      </a>
+      <div class="nav-divider"></div>
+      <a href="{{ url_for('index') }}" target="_blank">
+        <i class="fas fa-store"></i> <span>View Store</span>
+      </a>
+      <a href="{{ url_for('logout') }}" class="logout-link">
+        <i class="fas fa-sign-out-alt"></i> <span>Logout</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-user">
+      <div class="user-avatar">{{ current_user.name[0].upper() }}</div>
+      <div>
+        <div class="user-name">{{ current_user.name }}</div>
+        <div class="user-role">Administrator</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="admin-main">
+    <header class="admin-header">
+      <button class="sidebar-toggle" onclick="document.getElementById('adminSidebar').classList.toggle('open')">
+        <i class="fas fa-bars"></i>
+      </button>
+      <h1 class="admin-page-title">{% block page_title %}Dashboard{% endblock %}</h1>
+      <div class="header-right">
+        <span class="greeting">👋 Hello, {{ current_user.name }}</span>
+      </div>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div style="padding: 0 1.5rem;">
+          {% for cat, msg in messages %}
+            <div class="flash flash-{{ cat }}">{{ msg }} <button onclick="this.parentElement.remove()">×</button></div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="admin-content">
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+</body>
+</html>
