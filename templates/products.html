@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Products{% endblock %}
+{% block title %}All Products{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -17,7 +17,7 @@
       <ul class="cat-list">
         <li><a href="{{ url_for('products') }}" class="{{ 'active' if not current_category }}">All Products</a></li>
         {% for cat in categories %}
-        <li><a href="{{ url_for('products', category=cat.id) }}" class="{{ 'active' if current_category == cat.id }}">{{ cat.icon }} {{ cat.name }}</a></li>
+        <li><a href="{{ url_for('category_page', id=cat.id) }}" class="{{ 'active' if current_category == cat.id }}">{{ cat.icon }} {{ cat.name }}</a></li>
         {% endfor %}
       </ul>
     </div>
@@ -40,10 +40,10 @@
     <div class="sidebar-card">
       <h3>Sort By</h3>
       <div class="sort-options">
-        <a href="{{ url_for('products', category=current_category, q=search, sort='newest') }}" class="{{ 'active' if sort=='newest' }}">Newest</a>
-        <a href="{{ url_for('products', category=current_category, q=search, sort='price_asc') }}" class="{{ 'active' if sort=='price_asc' }}">Price: Low → High</a>
-        <a href="{{ url_for('products', category=current_category, q=search, sort='price_desc') }}" class="{{ 'active' if sort=='price_desc' }}">Price: High → Low</a>
-        <a href="{{ url_for('products', category=current_category, q=search, sort='name') }}" class="{{ 'active' if sort=='name' }}">Name A-Z</a>
+        <a href="{{ url_for('products', category=current_category, q=search, sort='newest') }}" class="{{ 'active' if sort=='newest' }}">🆕 Newest First</a>
+        <a href="{{ url_for('products', category=current_category, q=search, sort='price_asc') }}" class="{{ 'active' if sort=='price_asc' }}">💰 Price: Low → High</a>
+        <a href="{{ url_for('products', category=current_category, q=search, sort='price_desc') }}" class="{{ 'active' if sort=='price_desc' }}">💎 Price: High → Low</a>
+        <a href="{{ url_for('products', category=current_category, q=search, sort='name') }}" class="{{ 'active' if sort=='name' }}">🔤 Name A–Z</a>
       </div>
     </div>
   </aside>
@@ -52,7 +52,7 @@
   <div class="shop-main">
     {% if search %}
     <div class="search-info">
-      <i class="fas fa-search"></i> "{{ search }}" ke liye {{ products.total }} results
+      <i class="fas fa-search"></i> Showing {{ products.total }} results for "<strong>{{ search }}</strong>"
       <a href="{{ url_for('products') }}">✕ Clear</a>
     </div>
     {% endif %}
@@ -64,9 +64,11 @@
         {% if product.original_price and product.original_price > product.price %}
         <div class="badge-sale">{{ ((product.original_price - product.price) / product.original_price * 100)|int }}% OFF</div>
         {% endif %}
-        {% if product.stock < 5 %}<div class="badge-low">Low Stock</div>{% endif %}
+        {% if product.stock == 0 %}<div class="badge-out">Out of Stock</div>
+        {% elif product.stock < 5 %}<div class="badge-low">Only {{ product.stock }} left</div>{% endif %}
         <a href="{{ url_for('product_detail', id=product.id) }}" class="product-img-wrap">
           <img src="{{ product.image_url or 'https://via.placeholder.com/300x300/f0f0f0/888?text=No+Image' }}" alt="{{ product.name }}" loading="lazy">
+          <div class="img-overlay"><span><i class="fas fa-eye"></i> View</span></div>
         </a>
         <div class="product-info">
           {% if product.category %}
@@ -74,8 +76,11 @@
           {% endif %}
           <h3><a href="{{ url_for('product_detail', id=product.id) }}">{{ product.name }}</a></h3>
           <div class="product-rating">
-            <span>⭐ {{ product.rating }}</span>
-            <span>({{ product.reviews_count }})</span>
+            <div class="stars-row">
+              {% for i in range(5) %}{% if i < product.rating|int %}<i class="fas fa-star"></i>{% else %}<i class="far fa-star"></i>{% endif %}{% endfor %}
+            </div>
+            <span class="rating-val">{{ product.rating }}</span>
+            <span class="rating-cnt">({{ product.reviews_count }})</span>
           </div>
           <div class="product-price">
             <span class="price-current">₹{{ "{:,.0f}".format(product.price) }}</span>
@@ -94,7 +99,6 @@
       {% endfor %}
     </div>
 
-    <!-- PAGINATION -->
     {% if products.pages > 1 %}
     <div class="pagination">
       {% if products.has_prev %}
@@ -116,9 +120,9 @@
     {% else %}
     <div class="empty-state">
       <div class="empty-icon">🔍</div>
-      <h3>Koi product nahi mila</h3>
-      <p>Apna search ya filter change karein.</p>
-      <a href="{{ url_for('products') }}" class="btn-primary">Sab Products Dekho</a>
+      <h3>No products found</h3>
+      <p>Try changing your search or filter settings.</p>
+      <a href="{{ url_for('products') }}" class="btn-primary">View All Products</a>
     </div>
     {% endif %}
   </div>

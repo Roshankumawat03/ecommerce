@@ -15,7 +15,7 @@
         <img src="{{ item.product.image_url or 'https://via.placeholder.com/100x100' }}" alt="{{ item.product.name }}">
         <div class="cart-item-info">
           <h3><a href="{{ url_for('product_detail', id=item.product.id) }}">{{ item.product.name }}</a></h3>
-          <span class="cart-price">₹{{ "{:,.0f}".format(item.product.price) }}</span>
+          <span class="cart-price">₹{{ "{:,.0f}".format(item.product.price) }} each</span>
         </div>
         <form action="{{ url_for('update_cart', id=item.product.id) }}" method="post" class="qty-form">
           <div class="qty-control small">
@@ -25,7 +25,7 @@
           </div>
         </form>
         <div class="cart-subtotal">₹{{ "{:,.0f}".format(item.subtotal) }}</div>
-        <a href="{{ url_for('remove_from_cart', id=item.product.id) }}" class="remove-btn"><i class="fas fa-trash"></i></a>
+        <a href="{{ url_for('remove_from_cart', id=item.product.id) }}" class="remove-btn" title="Remove"><i class="fas fa-trash"></i></a>
       </div>
       {% endfor %}
     </div>
@@ -33,23 +33,34 @@
     <div class="cart-summary">
       <h3>Order Summary</h3>
       <div class="summary-row"><span>Subtotal</span><span>₹{{ "{:,.0f}".format(get_cart_total()) }}</span></div>
-      <div class="summary-row"><span>Delivery</span><span class="free">{% if get_cart_total() >= 500 %}FREE{% else %}₹50{% endif %}</span></div>
-      <div class="summary-row total"><span>Total</span><span>₹{{ "{:,.0f}".format(get_cart_total() + (0 if get_cart_total() >= 500 else 50)) }}</span></div>
+      <div class="summary-row">
+        <span>Delivery</span>
+        <span class="free">{% if get_cart_total() >= 500 %}FREE{% else %}₹50{% endif %}</span>
+      </div>
+      {% if get_cart_total() < 500 %}
+      <div class="free-delivery-hint">
+        Add ₹{{ "{:,.0f}".format(500 - get_cart_total()) }} more for free delivery!
+      </div>
+      {% endif %}
+      <div class="summary-row total">
+        <span>Total</span>
+        <span>₹{{ "{:,.0f}".format(get_cart_total() + (0 if get_cart_total() >= 500 else 50)) }}</span>
+      </div>
       {% if current_user.is_authenticated %}
       <a href="{{ url_for('checkout') }}" class="btn-primary full">Proceed to Checkout →</a>
       {% else %}
       <a href="{{ url_for('login', next=url_for('checkout')) }}" class="btn-primary full">Login to Checkout →</a>
       {% endif %}
       <div class="cart-badges">
-        <span>🔒 Secure</span><span>🚚 Fast Delivery</span><span>↩️ Easy Return</span>
+        <span>🔒 Secure</span><span>🚚 Fast Delivery</span><span>↩️ Easy Returns</span>
       </div>
     </div>
   </div>
   {% else %}
   <div class="empty-state">
     <div class="empty-icon">🛒</div>
-    <h3>Aapka cart khali hai!</h3>
-    <p>Kuch products add karein aur shopping shuru karein.</p>
+    <h3>Your cart is empty!</h3>
+    <p>Looks like you haven't added anything yet. Start shopping now!</p>
     <a href="{{ url_for('products') }}" class="btn-primary">Shop Now</a>
   </div>
   {% endif %}

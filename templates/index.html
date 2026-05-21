@@ -6,11 +6,11 @@
 <section class="hero">
   <div class="hero-content">
     <div class="hero-badge">✨ New Arrivals are Here</div>
-    <h1>Shop Karo <br><span class="gradient-text">Style Ke Saath</span></h1>
-    <p>India ka No.1 Online Shopping Store — {{ total_products }}+ products, unbeatable prices, lightning-fast delivery.</p>
+    <h1>Shop Smart,<br><span class="gradient-text">Live Better</span></h1>
+    <p>India's #1 Online Shopping Store — {{ total_products }}+ products, unbeatable prices, and lightning-fast delivery.</p>
     <div class="hero-buttons">
       <a href="{{ url_for('products') }}" class="btn-primary">Shop Now <i class="fas fa-arrow-right"></i></a>
-      <a href="{{ url_for('products', category=1) }}" class="btn-outline">Explore Electronics</a>
+      <a href="{{ url_for('category_page', id=1) }}" class="btn-outline">Explore Electronics</a>
     </div>
     <div class="hero-stats">
       <div><strong>50K+</strong><span>Happy Customers</span></div>
@@ -33,7 +33,7 @@
   <div class="container">
     <div class="section-header">
       <h2>Browse <span class="accent">Categories</span></h2>
-      <a href="{{ url_for('products') }}" class="see-all">Sab dekho →</a>
+      <a href="{{ url_for('products') }}" class="see-all">View All →</a>
     </div>
     <div class="categories-grid">
       {% for cat in categories %}
@@ -52,7 +52,7 @@
   <div class="container">
     <div class="section-header">
       <h2>🔥 <span class="accent">Featured</span> Products</h2>
-      <a href="{{ url_for('products') }}" class="see-all">Sab dekho →</a>
+      <a href="{{ url_for('products') }}" class="see-all">View All →</a>
     </div>
     <div class="products-grid">
       {% for product in featured %}
@@ -62,6 +62,7 @@
         {% endif %}
         <a href="{{ url_for('product_detail', id=product.id) }}" class="product-img-wrap">
           <img src="{{ product.image_url or 'https://via.placeholder.com/300x300/f0f0f0/888?text=No+Image' }}" alt="{{ product.name }}" loading="lazy">
+          <div class="img-overlay"><span><i class="fas fa-eye"></i> View</span></div>
         </a>
         <div class="product-info">
           {% if product.category %}
@@ -69,8 +70,11 @@
           {% endif %}
           <h3><a href="{{ url_for('product_detail', id=product.id) }}">{{ product.name }}</a></h3>
           <div class="product-rating">
-            <span class="stars">{% for i in range(5) %}{% if i < product.rating|int %}⭐{% else %}☆{% endif %}{% endfor %}</span>
-            <span>({{ product.reviews_count }})</span>
+            <div class="stars-row">
+              {% for i in range(5) %}{% if i < product.rating|int %}<i class="fas fa-star"></i>{% else %}<i class="far fa-star"></i>{% endif %}{% endfor %}
+            </div>
+            <span class="rating-val">{{ product.rating }}</span>
+            <span class="rating-cnt">({{ product.reviews_count }})</span>
           </div>
           <div class="product-price">
             <span class="price-current">₹{{ "{:,.0f}".format(product.price) }}</span>
@@ -78,9 +82,7 @@
           </div>
           <form action="{{ url_for('add_to_cart', id=product.id) }}" method="post">
             <input type="hidden" name="qty" value="1">
-            <button type="submit" class="add-cart-btn">
-              <i class="fas fa-shopping-bag"></i> Add to Cart
-            </button>
+            <button type="submit" class="add-cart-btn"><i class="fas fa-shopping-bag"></i> Add to Cart</button>
           </form>
         </div>
       </div>
@@ -97,21 +99,21 @@
         <div class="promo-content">
           <span>Electronics Sale</span>
           <h3>Up to 40% Off</h3>
-          <a href="{{ url_for('products', category=1) }}">Shop Now →</a>
+          <a href="{{ url_for('category_page', id=1) }}">Shop Now →</a>
         </div>
       </div>
       <div class="promo-card promo-2">
         <div class="promo-content">
           <span>Fashion Week</span>
           <h3>Trendy Styles</h3>
-          <a href="{{ url_for('products', category=2) }}">Shop Now →</a>
+          <a href="{{ url_for('category_page', id=2) }}">Shop Now →</a>
         </div>
       </div>
       <div class="promo-card promo-3">
         <div class="promo-content">
           <span>Sports & Fitness</span>
           <h3>Stay Active</h3>
-          <a href="{{ url_for('products', category=4) }}">Shop Now →</a>
+          <a href="{{ url_for('category_page', id=4) }}">Shop Now →</a>
         </div>
       </div>
     </div>
@@ -123,13 +125,14 @@
   <div class="container">
     <div class="section-header">
       <h2>✨ <span class="accent">New</span> Arrivals</h2>
-      <a href="{{ url_for('products', sort='newest') }}" class="see-all">Sab dekho →</a>
+      <a href="{{ url_for('products', sort='newest') }}" class="see-all">View All →</a>
     </div>
     <div class="products-grid">
       {% for product in new_arrivals[:8] %}
       <div class="product-card">
         <a href="{{ url_for('product_detail', id=product.id) }}" class="product-img-wrap">
           <img src="{{ product.image_url or 'https://via.placeholder.com/300x300/f0f0f0/888?text=No+Image' }}" alt="{{ product.name }}" loading="lazy">
+          <div class="img-overlay"><span><i class="fas fa-eye"></i> View</span></div>
         </a>
         <div class="product-info">
           <h3><a href="{{ url_for('product_detail', id=product.id) }}">{{ product.name }}</a></h3>
@@ -139,9 +142,7 @@
           </div>
           <form action="{{ url_for('add_to_cart', id=product.id) }}" method="post">
             <input type="hidden" name="qty" value="1">
-            <button type="submit" class="add-cart-btn">
-              <i class="fas fa-shopping-bag"></i> Add to Cart
-            </button>
+            <button type="submit" class="add-cart-btn"><i class="fas fa-shopping-bag"></i> Add to Cart</button>
           </form>
         </div>
       </div>
@@ -157,7 +158,7 @@
       <div class="trust-item">
         <div class="trust-icon">🚚</div>
         <h4>Free Delivery</h4>
-        <p>₹500 se upar ke orders pe</p>
+        <p>On all orders above ₹500</p>
       </div>
       <div class="trust-item">
         <div class="trust-icon">↩️</div>
@@ -172,7 +173,7 @@
       <div class="trust-item">
         <div class="trust-icon">🎧</div>
         <h4>24/7 Support</h4>
-        <p>Hamesha aapke saath</p>
+        <p>Always here to help you</p>
       </div>
     </div>
   </div>

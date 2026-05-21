@@ -17,15 +17,17 @@
       <div class="order-items-list">
         {% for item in order.items %}
         <div class="order-item-row">
-          <img src="{{ item.product.image_url if item.product else '' }}" alt="">
+          <img src="{{ item.product.image_url if item.product else '' }}" alt=""
+               onerror="this.style.display='none'">
           <span>{{ item.product.name if item.product else 'Product' }}</span>
-          <span>×{{ item.quantity }}</span>
+          <span>× {{ item.quantity }}</span>
           <span>₹{{ "{:,.0f}".format(item.price * item.quantity) }}</span>
         </div>
         {% endfor %}
       </div>
       <div class="order-card-footer">
-        <span>Payment: {{ order.payment_method }}</span>
+        <span><i class="fas fa-credit-card"></i> {{ order.payment_method }}</span>
+        <span><i class="fas fa-map-marker-alt"></i> {{ (order.address or '')[:40] }}…</span>
         <span class="order-total">Total: ₹{{ "{:,.0f}".format(order.total) }}</span>
       </div>
     </div>
@@ -34,8 +36,9 @@
   {% else %}
   <div class="empty-state">
     <div class="empty-icon">📦</div>
-    <h3>Koi order nahi hai abhi tak</h3>
-    <a href="{{ url_for('products') }}" class="btn-primary">Shopping Shuru Karo</a>
+    <h3>No orders yet!</h3>
+    <p>You haven't placed any orders. Start shopping now!</p>
+    <a href="{{ url_for('products') }}" class="btn-primary">Start Shopping</a>
   </div>
   {% endif %}
 </div>

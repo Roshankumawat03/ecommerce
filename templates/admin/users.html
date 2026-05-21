@@ -24,21 +24,20 @@
           </td>
           <td>{{ user.email }}</td>
           <td>
-            {% if user.is_admin %}
-            <span class="badge-admin">Admin</span>
-            {% else %}
-            <span class="badge-user">Customer</span>
-            {% endif %}
+            {% if user.is_admin %}<span class="badge-admin">Admin</span>
+            {% else %}<span class="badge-user">Customer</span>{% endif %}
           </td>
           <td>{{ user.created_at.strftime('%d %b %Y') }}</td>
           <td>{{ user.orders|length }}</td>
           <td>
             {% if user.id != current_user.id %}
-            <a href="{{ url_for('admin_toggle_user', id=user.id) }}" class="btn-toggle {{ 'demote' if user.is_admin }}" onclick="return confirm('Role change karna hai?')">
+            <a href="{{ url_for('admin_toggle_user', id=user.id) }}"
+               class="btn-toggle {{ 'demote' if user.is_admin }}"
+               onclick="return confirm('Change this user\'s role?')">
               {% if user.is_admin %}Remove Admin{% else %}Make Admin{% endif %}
             </a>
             {% else %}
-            <span class="text-muted">You</span>
+            <span style="color:var(--text-muted);font-size:.8rem;">You</span>
             {% endif %}
           </td>
         </tr>

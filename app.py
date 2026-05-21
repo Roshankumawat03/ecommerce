@@ -14,7 +14,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
-login_manager.login_message = 'Please login to continue.'
+login_manager.login_message = 'Please log in to continue.'
 
 # ─────────────────────────────────────────────
 # MODELS
@@ -207,7 +207,7 @@ def add_to_cart(id):
     else:
         cart[pid] = {'name': product.name, 'price': product.price, 'qty': qty, 'image': product.image_url}
     session['cart'] = cart
-    flash(f'"{product.name}" cart mein add ho gaya!', 'success')
+    flash(f'"{product.name}" added to your cart!', 'success')
     return redirect(request.referrer or url_for('products'))
 
 @app.route('/cart/update/<int:id>', methods=['POST'])
@@ -230,7 +230,7 @@ def remove_from_cart(id):
     if pid in cart:
         del cart[pid]
     session['cart'] = cart
-    flash('Item cart se remove ho gaya.', 'info')
+    flash('Item removed from cart.', 'info')
     return redirect(url_for('cart'))
 
 @app.route('/checkout', methods=['GET', 'POST'])
@@ -238,7 +238,7 @@ def remove_from_cart(id):
 def checkout():
     cart = get_cart()
     if not cart:
-        flash('Aapka cart khali hai!', 'warning')
+        flash('Your cart is empty!', 'warning')
         return redirect(url_for('products'))
     if request.method == 'POST':
         address = request.form.get('address')
@@ -258,7 +258,7 @@ def checkout():
                 product.stock = max(0, product.stock - item['qty'])
         db.session.commit()
         session['cart'] = {}
-        flash(f'Order #{order.id} successfully place ho gaya! 🎉', 'success')
+        flash(f'Order #{order.id} placed successfully! 🎉', 'success')
         return redirect(url_for('order_success', order_id=order.id))
     return render_template('checkout.html', total=get_cart_total())
 
@@ -287,7 +287,7 @@ def login():
             next_page = request.args.get('next')
             flash(f'Welcome back, {user.name}! 👋', 'success')
             return redirect(next_page or url_for('index'))
-        flash('Email ya password galat hai!', 'danger')
+        flash('Invalid email or password!', 'danger')
     return render_template('login.html')
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -300,16 +300,16 @@ def register():
         password = request.form.get('password')
         confirm = request.form.get('confirm_password')
         if password != confirm:
-            flash('Passwords match nahi karti!', 'danger')
+            flash('Passwords do not match!', 'danger')
             return render_template('register.html')
         if User.query.filter_by(email=email).first():
-            flash('Yeh email already registered hai!', 'danger')
+            flash('This email is already registered!', 'danger')
             return render_template('register.html')
         user = User(name=name, email=email, password=generate_password_hash(password))
         db.session.add(user)
         db.session.commit()
         login_user(user)
-        flash(f'Account ban gaya! Welcome, {name}! 🎉', 'success')
+        flash(f'Account created! Welcome, {name}! 🎉', 'success')
         return redirect(url_for('index'))
     return render_template('register.html')
 
@@ -317,7 +317,7 @@ def register():
 @login_required
 def logout():
     logout_user()
-    flash('Successfully logout ho gaye.', 'info')
+    flash('You have been logged out successfully.', 'info')
     return redirect(url_for('index'))
 
 # ─────────────────────────────────────────────
@@ -387,7 +387,7 @@ def admin_add_product():
     )
     db.session.add(p)
     db.session.commit()
-    flash('Product add ho gaya!', 'success')
+    flash('Product added successfully!', 'success')
     return redirect(url_for('admin_products'))
 
 @app.route('/admin/products/edit/<int:id>', methods=['POST'])
@@ -406,7 +406,7 @@ def admin_edit_product(id):
     p.rating = float(request.form.get('rating', p.rating))
     p.reviews_count = int(request.form.get('reviews_count', p.reviews_count or 0))
     db.session.commit()
-    flash('Product update ho gaya!', 'success')
+    flash('Product updated successfully!', 'success')
     return redirect(url_for('admin_products', cat=request.form.get('cat_filter')))
 
 @app.route('/admin/products/delete/<int:id>')
@@ -416,7 +416,7 @@ def admin_delete_product(id):
     p = Product.query.get_or_404(id)
     db.session.delete(p)
     db.session.commit()
-    flash('Product delete ho gaya!', 'success')
+    flash('Product deleted successfully!', 'success')
     return redirect(url_for('admin_products'))
 
 @app.route('/admin/orders')
@@ -437,7 +437,7 @@ def admin_update_order(id):
     order = Order.query.get_or_404(id)
     order.status = request.form['status']
     db.session.commit()
-    flash(f'Order #{id} status update ho gaya!', 'success')
+    flash(f'Order #{id} status updated!', 'success')
     return redirect(url_for('admin_orders'))
 
 @app.route('/admin/users')
@@ -455,7 +455,7 @@ def admin_toggle_user(id):
     if user.id != current_user.id:
         user.is_admin = not user.is_admin
         db.session.commit()
-        flash('User role update ho gaya!', 'success')
+        flash('User role updated successfully!', 'success')
     return redirect(url_for('admin_users'))
 
 @app.route('/admin/categories', methods=['GET', 'POST'])
@@ -466,7 +466,7 @@ def admin_categories():
         c = Category(name=request.form['name'], icon=request.form.get('icon', '🛍️'))
         db.session.add(c)
         db.session.commit()
-        flash('Category add ho gayi!', 'success')
+        flash('Category added successfully!', 'success')
     categories = Category.query.all()
     return render_template('admin/categories.html', categories=categories)
 
@@ -477,7 +477,7 @@ def admin_delete_category(id):
     c = Category.query.get_or_404(id)
     db.session.delete(c)
     db.session.commit()
-    flash('Category delete ho gayi!', 'success')
+    flash('Category deleted successfully!', 'success')
     return redirect(url_for('admin_categories'))
 
 # ─────────────────────────────────────────────

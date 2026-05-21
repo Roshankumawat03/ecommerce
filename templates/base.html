@@ -27,6 +27,7 @@
 
     <div class="nav-actions">
       <a href="{{ url_for('products') }}" class="nav-link"><i class="fas fa-th-large"></i> <span>Shop</span></a>
+
       <div class="nav-categories-wrap">
         <button class="nav-link nav-cat-btn" id="catDropBtn">
           <i class="fas fa-list"></i> <span>Categories</span> <i class="fas fa-chevron-down cat-arrow"></i>
@@ -71,6 +72,9 @@
   <div class="mobile-menu" id="mobileMenu">
     <a href="{{ url_for('index') }}">Home</a>
     <a href="{{ url_for('products') }}">Shop</a>
+    {% for cat in nav_categories %}
+    <a href="{{ url_for('category_page', id=cat.id) }}" style="padding-left:1.5rem;font-size:.9rem;color:#888;">{{ cat.icon }} {{ cat.name }}</a>
+    {% endfor %}
     {% if current_user.is_authenticated %}
       <a href="{{ url_for('my_orders') }}">My Orders</a>
       {% if current_user.is_admin %}<a href="{{ url_for('admin_dashboard') }}">Admin Panel</a>{% endif %}
@@ -105,7 +109,7 @@
   <div class="footer-grid">
     <div>
       <div class="footer-brand">🛍️ ShopNest</div>
-      <p>India ka sabse trusted online shopping platform. Quality products, fast delivery, easy returns.</p>
+      <p>India's most trusted online shopping platform. Quality products, fast delivery, and easy returns — always.</p>
       <div class="social-links">
         <a href="#"><i class="fab fa-instagram"></i></a>
         <a href="#"><i class="fab fa-facebook"></i></a>
@@ -127,10 +131,9 @@
     <div>
       <h4>Categories</h4>
       <ul>
-        <li><a href="{{ url_for('products', category=1) }}">💻 Electronics</a></li>
-        <li><a href="{{ url_for('products', category=2) }}">👗 Fashion</a></li>
-        <li><a href="{{ url_for('products', category=3) }}">🏠 Home & Living</a></li>
-        <li><a href="{{ url_for('products', category=4) }}">⚽ Sports</a></li>
+        {% for cat in nav_categories %}
+        <li><a href="{{ url_for('category_page', id=cat.id) }}">{{ cat.icon }} {{ cat.name }}</a></li>
+        {% endfor %}
       </ul>
     </div>
     <div>
@@ -149,7 +152,7 @@
     </div>
   </div>
   <div class="footer-bottom">
-    <p>© 2024 ShopNest. Sab haq surakshit hain. | Made with ❤️ in India</p>
+    <p>© 2024 ShopNest. All rights reserved. | Made with ❤️ in India</p>
   </div>
 </footer>
 

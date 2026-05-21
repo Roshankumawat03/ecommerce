@@ -6,19 +6,17 @@
   <div class="breadcrumb">
     <a href="{{ url_for('index') }}">Home</a> ›
     <a href="{{ url_for('products') }}">Products</a> ›
-    {% if product.category %}<a href="{{ url_for('products', category=product.category_id) }}">{{ product.category.name }}</a> › {% endif %}
+    {% if product.category %}<a href="{{ url_for('category_page', id=product.category_id) }}">{{ product.category.name }}</a> › {% endif %}
     {{ product.name }}
   </div>
 
   <div class="product-detail-grid">
-    <!-- IMAGES -->
     <div class="pd-images">
       <div class="pd-main-img">
         <img src="{{ product.image_url or 'https://via.placeholder.com/600x600/f0f0f0/888?text=No+Image' }}" alt="{{ product.name }}" id="mainImg">
       </div>
     </div>
 
-    <!-- INFO -->
     <div class="pd-info">
       {% if product.category %}
       <span class="product-cat large">{{ product.category.icon }} {{ product.category.name }}</span>
@@ -26,7 +24,9 @@
       <h1>{{ product.name }}</h1>
 
       <div class="pd-rating">
-        <span class="stars-large">{% for i in range(5) %}{% if i < product.rating|int %}⭐{% else %}☆{% endif %}{% endfor %}</span>
+        <span class="stars-large">
+          {% for i in range(5) %}{% if i < product.rating|int %}⭐{% else %}☆{% endif %}{% endfor %}
+        </span>
         <span class="rating-num">{{ product.rating }}</span>
         <span class="rating-count">({{ product.reviews_count }} reviews)</span>
       </div>
@@ -39,6 +39,12 @@
         {% endif %}
       </div>
 
+      {% if product.original_price and product.original_price > product.price %}
+      <div class="save-info">
+        You save <strong>₹{{ "{:,.0f}".format(product.original_price - product.price) }}</strong> on this product!
+      </div>
+      {% endif %}
+
       <div class="pd-description">
         <p>{{ product.description }}</p>
       </div>
@@ -47,7 +53,7 @@
         {% if product.stock > 10 %}
         <span class="in-stock">✅ In Stock ({{ product.stock }} available)</span>
         {% elif product.stock > 0 %}
-        <span class="low-stock">⚠️ Only {{ product.stock }} left!</span>
+        <span class="low-stock">⚠️ Only {{ product.stock }} left in stock!</span>
         {% else %}
         <span class="out-stock">❌ Out of Stock</span>
         {% endif %}
@@ -72,12 +78,12 @@
       <div class="pd-meta">
         <div><i class="fas fa-truck"></i> Free delivery on orders above ₹500</div>
         <div><i class="fas fa-undo"></i> 7-day easy returns</div>
-        <div><i class="fas fa-shield-alt"></i> 1-year warranty</div>
+        <div><i class="fas fa-shield-alt"></i> 1-year warranty included</div>
+        <div><i class="fas fa-lock"></i> 100% secure payment</div>
       </div>
     </div>
   </div>
 
-  <!-- RELATED PRODUCTS -->
   {% if related %}
   <section class="related-section">
     <h2>Related Products</h2>
@@ -86,15 +92,17 @@
       <div class="product-card">
         <a href="{{ url_for('product_detail', id=p.id) }}" class="product-img-wrap">
           <img src="{{ p.image_url or 'https://via.placeholder.com/300x300/f0f0f0/888?text=No+Image' }}" alt="{{ p.name }}" loading="lazy">
+          <div class="img-overlay"><span><i class="fas fa-eye"></i> View</span></div>
         </a>
         <div class="product-info">
           <h3><a href="{{ url_for('product_detail', id=p.id) }}">{{ p.name }}</a></h3>
           <div class="product-price">
             <span class="price-current">₹{{ "{:,.0f}".format(p.price) }}</span>
+            {% if p.original_price %}<span class="price-old">₹{{ "{:,.0f}".format(p.original_price) }}</span>{% endif %}
           </div>
           <form action="{{ url_for('add_to_cart', id=p.id) }}" method="post">
             <input type="hidden" name="qty" value="1">
-            <button type="submit" class="add-cart-btn">Add to Cart</button>
+            <button type="submit" class="add-cart-btn"><i class="fas fa-shopping-bag"></i> Add to Cart</button>
           </form>
         </div>
       </div>

@@ -617,3 +617,16 @@ input, select, textarea, button { font-family: inherit; }
 
 /* ─── CATEGORY CARD COUNT ─── */
 .cat-pcount { font-size: .72rem; color: var(--text-muted); margin-top: .1rem; }
+
+/* ─── SAVE INFO (product detail) ─── */
+.save-info {
+  background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7;
+  border-radius: var(--radius-sm); padding: .6rem 1rem;
+  font-size: .88rem; font-weight: 600; margin-bottom: 1rem;
+}
+/* ─── FREE DELIVERY HINT (cart) ─── */
+.free-delivery-hint {
+  background: #fef3c7; color: #92400e;
+  border-radius: var(--radius-sm); padding: .5rem .8rem;
+  font-size: .8rem; text-align: center; margin: .3rem 0;
+}

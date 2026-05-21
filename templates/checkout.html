@@ -22,7 +22,7 @@
           </div>
           <div class="form-group">
             <label>Complete Address *</label>
-            <textarea name="address" required rows="3" placeholder="House No., Street, Area, City, State, PIN"></textarea>
+            <textarea name="address" required rows="3" placeholder="House No., Street, Area, City, State, PIN Code"></textarea>
           </div>
         </div>
 
@@ -39,7 +39,7 @@
             </label>
             <label class="payment-opt">
               <input type="radio" name="payment" value="Card">
-              <span>💳 Credit/Debit Card</span>
+              <span>💳 Credit / Debit Card</span>
             </label>
             <label class="payment-opt">
               <input type="radio" name="payment" value="NetBanking">
@@ -56,16 +56,18 @@
 
     <div class="checkout-summary">
       <h3>Order Summary</h3>
-      {% set cart = get_cart_total() %}
       <div class="summary-row"><span>Items Total</span><span>₹{{ "{:,.0f}".format(total) }}</span></div>
-      <div class="summary-row"><span>Delivery</span><span class="free">{% if total >= 500 %}FREE{% else %}₹50{% endif %}</span></div>
+      <div class="summary-row">
+        <span>Delivery</span>
+        <span class="free">{% if total >= 500 %}FREE{% else %}₹50{% endif %}</span>
+      </div>
       <div class="summary-row total">
         <span>Grand Total</span>
         <span>₹{{ "{:,.0f}".format(total + (0 if total >= 500 else 50)) }}</span>
       </div>
       <div class="checkout-trust">
         <p>🔒 Your information is 100% secure</p>
-        <p>📦 Expected delivery in 3-5 business days</p>
+        <p>📦 Expected delivery in 3–5 business days</p>
         <p>↩️ Free returns within 7 days</p>
       </div>
     </div>

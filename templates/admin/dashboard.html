@@ -43,18 +43,10 @@
 <div class="quick-actions">
   <h3>Quick Actions</h3>
   <div class="action-btns">
-    <a href="{{ url_for('admin_products') }}" class="action-btn">
-      <i class="fas fa-plus"></i> Add Product
-    </a>
-    <a href="{{ url_for('admin_orders') }}" class="action-btn">
-      <i class="fas fa-clock"></i> Pending Orders
-    </a>
-    <a href="{{ url_for('admin_categories') }}" class="action-btn">
-      <i class="fas fa-tags"></i> Add Category
-    </a>
-    <a href="{{ url_for('admin_users') }}" class="action-btn">
-      <i class="fas fa-users"></i> Manage Users
-    </a>
+    <a href="{{ url_for('admin_products') }}" class="action-btn"><i class="fas fa-plus"></i> Add Product</a>
+    <a href="{{ url_for('admin_orders', status='Pending') }}" class="action-btn"><i class="fas fa-clock"></i> Pending Orders</a>
+    <a href="{{ url_for('admin_categories') }}" class="action-btn"><i class="fas fa-tags"></i> Add Category</a>
+    <a href="{{ url_for('admin_users') }}" class="action-btn"><i class="fas fa-users"></i> Manage Users</a>
   </div>
 </div>
 
@@ -86,7 +78,7 @@
     </div>
   </div>
 
-  <!-- LOW STOCK -->
+  <!-- LOW STOCK ALERT -->
   <div class="admin-card">
     <div class="card-header">
       <h3>⚠️ Low Stock Alert</h3>
@@ -96,11 +88,12 @@
     <div class="low-stock-list">
       {% for p in low_stock %}
       <div class="low-stock-item">
-        <img src="{{ p.image_url }}" alt="">
+        <img src="{{ p.image_url }}" alt=""
+             onerror="this.src='https://via.placeholder.com/40x40/f0f0f0/888?text=P'">
         <div>
-          <div class="ls-name">{{ p.name }}</div>
-          <div class="ls-stock {{ 'critical' if p.stock == 0 }}">
-            {% if p.stock == 0 %}❌ Out of Stock{% else %}⚠️ {{ p.stock }} left{% endif %}
+          <div class="ls-name">{{ p.name[:30] }}…</div>
+          <div class="ls-stock {{ 'critical' if p.stock==0 }}">
+            {% if p.stock==0 %}❌ Out of Stock{% else %}⚠️ Only {{ p.stock }} left{% endif %}
           </div>
         </div>
         <a href="{{ url_for('admin_products') }}" class="edit-link">Edit</a>

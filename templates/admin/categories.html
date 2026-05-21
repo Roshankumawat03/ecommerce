@@ -5,7 +5,7 @@
 {% block content %}
 <div class="dashboard-grid-2">
   <div class="admin-card">
-    <div class="card-header"><h3>Add Category</h3></div>
+    <div class="card-header"><h3>Add New Category</h3></div>
     <form method="post" class="category-form">
       <div class="form-group">
         <label>Category Name *</label>
@@ -15,7 +15,9 @@
         <label>Icon (Emoji)</label>
         <input type="text" name="icon" placeholder="e.g. 💻" maxlength="5">
       </div>
-      <button type="submit" class="btn-admin-primary">Add Category</button>
+      <button type="submit" class="btn-admin-primary">
+        <i class="fas fa-plus"></i> Add Category
+      </button>
     </form>
   </div>
 
@@ -27,9 +29,18 @@
         <span class="cat-icon-big">{{ c.icon }}</span>
         <span class="cat-manage-name">{{ c.name }}</span>
         <span class="cat-count">{{ c.products|length }} products</span>
-        <a href="{{ url_for('admin_delete_category', id=c.id) }}" class="btn-delete-sm" onclick="return confirm('Delete category?')"><i class="fas fa-trash"></i></a>
+        <a href="{{ url_for('admin_products', cat=c.id) }}" class="edit-link" title="View products">
+          <i class="fas fa-eye"></i>
+        </a>
+        <a href="{{ url_for('admin_delete_category', id=c.id) }}" class="btn-delete-sm"
+           onclick="return confirm('Delete this category?')" title="Delete">
+          <i class="fas fa-trash"></i>
+        </a>
       </div>
       {% endfor %}
+      {% if not categories %}
+      <div class="no-data">No categories yet. Add your first category!</div>
+      {% endif %}
     </div>
   </div>
 </div>
